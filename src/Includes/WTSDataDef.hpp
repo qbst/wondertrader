@@ -6,191 +6,240 @@
  * \date 2020/03/30
  * 
  * \brief Wt行情数据定义文件,包括tick、bar、orderqueue、orderdetail、transaction等数据
+ * 
+ * 文件设计逻辑与作用总结：
+ * 本文件是WonderTrader系统的核心数据定义文件，定义了量化交易中所有重要的数据结构。
+ * 主要包含以下几类数据：
+ * 1. 数值数组类(WTSValueArray)：用于存储和处理数值序列数据，支持统计计算
+ * 2. K线数据类(WTSKlineData/WTSKlineSlice)：管理OHLCV等K线数据，支持多周期和多时间框架
+ * 3. Tick数据类(WTSTickData)：实时行情数据，包含价格、成交量、买卖盘等详细信息
+ * 4. 委托队列类(WTSOrdQueData)：订单簿深度数据
+ * 5. 逐笔委托类(WTSOrdDtlData)：详细的订单执行信息
+ * 6. 逐笔成交类(WTSTransData)：每笔交易的详细信息
+ * 7. 历史数据切片类：用于高效访问历史数据的特定时间段
+ * 
+ * 设计特点：
+ * - 采用引用计数机制管理内存，提高性能
+ * - 支持负索引访问，便于历史数据分析
+ * - 提供丰富的数据提取和统计功能
+ * - 支持多数据源的数据拼接和切片操作
  */
 #pragma once
-#include <stdlib.h>
-#include <vector>
-#include <deque>
-#include <string.h>
-#include <chrono>
+#include <stdlib.h>      // 标准库函数，提供malloc、free等内存管理函数
+#include <vector>        // 动态数组容器，用于存储数据序列
+#include <deque>         // 双端队列容器，支持高效的首尾操作
+#include <string.h>      // 字符串处理函数库
+#include <chrono>        // 时间相关功能，提供高精度时钟
 
-#include "WTSObject.hpp"
+#include "WTSObject.hpp"     // WonderTrader基础对象类，提供引用计数等基础功能
 
-#include "WTSTypes.h"
-#include "WTSMarcos.h"
-#include "WTSStruct.h"
-#include "WTSCollection.hpp"
+#include "WTSTypes.h"        // WonderTrader类型定义
+#include "WTSMarcos.h"       // WonderTrader宏定义
+#include "WTSStruct.h"        // WonderTrader结构体定义
+#include "WTSCollection.hpp"  // WonderTrader集合类定义
 
-using namespace std;
+using namespace std;          // 使用标准命名空间
 
-#pragma warning(disable:4267)
+#pragma warning(disable:4267) // 禁用MSVC编译器关于size_t转换的警告
 
 
-NS_WTP_BEGIN
-class WTSContractInfo;
+NS_WTP_BEGIN  // 开始WonderTrader命名空间
+class WTSContractInfo;  // 前向声明：合约信息类
+
 /*
  *	数值数组的内部封装
  *	采用std::vector实现
  *	包含数据格式化字符串
  *	数值的数据类型为double
  */
-class WTSValueArray : public WTSObject
+class WTSValueArray : public WTSObject  // 数值数组类，继承自WTSObject以支持引用计数
 {
 protected:
-	vector<double>	m_vecData;
+	vector<double>	m_vecData;  // 存储数值数据的向量容器，数据类型为double
 
 public:
 	/*
 	 *	创建一个数值数组对象
 	 *	@decimal 保留的小数点位数
 	 */
-	static WTSValueArray* create()
+	static WTSValueArray* create()  // 静态工厂方法：创建数值数组对象
 	{
-		WTSValueArray* pRet = new WTSValueArray;
-		pRet->m_vecData.clear();
-		return pRet;
+		WTSValueArray* pRet = new WTSValueArray;  // 创建新的数值数组实例
+		pRet->m_vecData.clear();                  // 清空内部数据向量
+		return pRet;                              // 返回创建的实例指针
 	}
 
 	/*
 	 *	读取数组的长度
 	 */
-	inline uint32_t	size() const{ return m_vecData.size(); }
-	inline bool		empty() const{ return m_vecData.empty(); }
+	inline uint32_t	size() const{ return m_vecData.size(); }  // 内联函数：返回数组当前元素个数
+	inline bool		empty() const{ return m_vecData.empty(); }  // 内联函数：检查数组是否为空
 
 	/*
 	 *	读取指定位置的数据
-	 *	如果超出范围,则返回INVALID_VALUE
+	 *	@param idx 数据索引，支持负数索引（-1表示最后一个元素）
+	 *	@return 指定位置的数值，如果超出范围则返回INVALID_DOUBLE
 	 */
 	inline double		at(uint32_t idx) const
 	{
-		idx = translateIdx(idx);
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
 
-		if(idx < 0 || idx >= m_vecData.size())
-			return INVALID_DOUBLE;
+		if(idx < 0 || idx >= m_vecData.size())  // 检查索引范围
+			return INVALID_DOUBLE;  // 返回无效值
 
-		return m_vecData[idx];
+		return m_vecData[idx];  // 返回指定位置的数据
 	}
 
+	/*
+	 *	索引转换函数
+	 *	将负数索引转换为正数索引，支持Python风格的负数索引
+	 *	@param idx 原始索引
+	 *	@return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		if(idx < 0)
+		if(idx < 0)  // 如果是负数索引
 		{
-			return m_vecData.size()+idx;
+			return m_vecData.size()+idx;  // 从数组末尾开始计算索引
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 	/*
 	 *	找到指定范围内的最大值
-	 *	如果超出范围,则返回INVALID_VALUE
+	 *	@param head 起始索引，支持负数索引
+	 *	@param tail 结束索引，支持负数索引
+	 *	@param isAbs 是否取绝对值进行比较
+	 *	@return 范围内的最大值，如果超出范围则返回INVALID_DOUBLE
 	 */
 	double		maxvalue(int32_t head, int32_t tail, bool isAbs = false) const
 	{
-		head = translateIdx(head);
-		tail = translateIdx(tail);
+		head = translateIdx(head);  // 转换起始索引
+		tail = translateIdx(tail);  // 转换结束索引
 
-		uint32_t begin = min(head, tail);
-		uint32_t end = max(head, tail);
+		uint32_t begin = min(head, tail);  // 确定范围的起始位置
+		uint32_t end = max(head, tail);    // 确定范围的结束位置
 
 		if(begin <0 || begin >= m_vecData.size() || end < 0 || end > m_vecData.size())
-			return INVALID_DOUBLE;
+			return INVALID_DOUBLE;  // 索引超出范围，返回无效值
 
-		double maxValue = INVALID_DOUBLE;
-		for(uint32_t i = begin; i <= end; i++)
+		double maxValue = INVALID_DOUBLE;  // 初始化最大值为无效值
+		for(uint32_t i = begin; i <= end; i++)  // 遍历指定范围
 		{
-			if(m_vecData[i] == INVALID_DOUBLE)
+			if(m_vecData[i] == INVALID_DOUBLE)  // 跳过无效数据
 				continue;
 
-			if(maxValue == INVALID_DOUBLE)
+			if(maxValue == INVALID_DOUBLE)  // 第一个有效值直接赋值
 				maxValue = isAbs?abs(m_vecData[i]):m_vecData[i];
-			else
+			else  // 后续值与当前最大值比较
 				maxValue = max(maxValue, isAbs?abs(m_vecData[i]):m_vecData[i]);
 		}
 
-		//if (maxValue == INVALID_DOUBLE)
+		//if (maxValue == INVALID_DOUBLE)  // 如果没有找到有效值，可以返回0.0
 		//	maxValue = 0.0;
 
-		return maxValue;
+		return maxValue;  // 返回找到的最大值
 	}
 
 	/*
 	 *	找到指定范围内的最小值
-	 *	如果超出范围,则返回INVALID_VALUE
+	 *	@param head 起始索引，支持负数索引
+	 *	@param tail 结束索引，支持负数索引
+	 *	@param isAbs 是否取绝对值进行比较
+	 *	@return 范围内的最小值，如果超出范围则返回INVALID_DOUBLE
 	 */
 	double		minvalue(int32_t head, int32_t tail, bool isAbs = false) const
 	{
-		head = translateIdx(head);
-		tail = translateIdx(tail);
+		head = translateIdx(head);  // 转换起始索引
+		tail = translateIdx(tail);  // 转换结束索引
 
-		uint32_t begin = min(head, tail);
-		uint32_t end = max(head, tail);
+		uint32_t begin = min(head, tail);  // 确定范围的起始位置
+		uint32_t end = max(head, tail);    // 确定范围的结束位置
 
 		if(begin <0 || begin >= m_vecData.size() || end < 0 || end > m_vecData.size())
-			return INVALID_DOUBLE;
+			return INVALID_DOUBLE;  // 索引超出范围，返回无效值
 
-		double minValue = INVALID_DOUBLE;
-		for(uint32_t i = begin; i <= end; i++)
+		double minValue = INVALID_DOUBLE;  // 初始化最小值为无效值
+		for(uint32_t i = begin; i <= end; i++)  // 遍历指定范围
 		{
-			if (m_vecData[i] == INVALID_DOUBLE)
+			if (m_vecData[i] == INVALID_DOUBLE)  // 跳过无效数据
 				continue;
 
-			if(minValue == INVALID_DOUBLE)
+			if(minValue == INVALID_DOUBLE)  // 第一个有效值直接赋值
 				minValue = isAbs?abs(m_vecData[i]):m_vecData[i];
-			else
+			else  // 后续值与当前最小值比较
 				minValue = min(minValue, isAbs?abs(m_vecData[i]):m_vecData[i]);
 		}
 
-		//if (minValue == INVALID_DOUBLE)
+		//if (minValue == INVALID_DOUBLE)  // 如果没有找到有效值，可以返回0.0
 		//	minValue = 0.0;
 
-		return minValue;
+		return minValue;  // 返回找到的最小值
 	}
 
 	/*
 	 *	在数组末尾添加数据
+	 *	@param val 要添加的数值
 	 */
 	inline void		append(double val)
 	{
-		m_vecData.emplace_back(val);
+		m_vecData.emplace_back(val);  // 在向量末尾就地构造新元素
 	}
 
 	/*
 	 *	设置指定位置的数据
+	 *	@param idx 数据索引位置
+	 *	@param val 要设置的数值
 	 */
 	inline void		set(uint32_t idx, double val)
 	{
-		if(idx < 0 || idx >= m_vecData.size())
+		if(idx < 0 || idx >= m_vecData.size())  // 检查索引范围
 			return;
 
-		m_vecData[idx] = val;
+		m_vecData[idx] = val;  // 设置指定位置的值
 	}
 
 	/*
-	 *	重新分配数组大小,并设置默认值
+	 *	重新分配数组大小，并设置默认值
+	 *	@param uSize 新的数组大小
+	 *	@param val 新元素的默认值，默认为INVALID_DOUBLE
 	 */
 	inline void		resize(uint32_t uSize, double val = INVALID_DOUBLE)
 	{
-		m_vecData.resize(uSize, val);
+		m_vecData.resize(uSize, val);  // 调整向量大小并填充默认值
 	}
 
 	/*
-	 *	重载操作符[]
-	 *	用法同getValue接口
+	 *	重载操作符[]（非常量版本）
+	 *	提供数组式访问，返回可修改的引用
+	 *	@param idx 数据索引
+	 *	@return 指定位置元素的引用
 	 */
 	inline double&		operator[](uint32_t idx)
 	{
-		return m_vecData[idx];
+		return m_vecData[idx];  // 返回可修改的元素引用
 	}
 
+	/*
+	 *	重载操作符[]（常量版本）
+	 *	提供数组式访问，返回只读值
+	 *	@param idx 数据索引
+	 *	@return 指定位置元素的值
+	 */
 	inline double		operator[](uint32_t idx) const
 	{
-		return m_vecData[idx];
+		return m_vecData[idx];  // 返回元素值（只读）
 	}
 
+	/*
+	 *	获取内部数据向量的引用
+	 *	用于直接访问底层存储，提高性能
+	 *	@return 内部vector<double>的引用
+	 */
 	inline std::vector<double>& getDataRef()
 	{
-		return m_vecData;
+		return m_vecData;  // 返回内部数据向量的引用
 	}
 };
 
@@ -199,15 +248,23 @@ public:
  *	这个比较特殊,因为要拼接当日和历史的
  *	所以有两个开始地址
  */
+/**
+ * K线数据切片类
+ * 用于高效访问K线数据的特定时间段，支持多数据源的拼接
+ * 主要特点：
+ * - 不复制数据，只记录数据块的引用和大小
+ * - 支持当日数据和历史数据的拼接
+ * - 提供负索引访问，便于历史数据分析
+ */
 class WTSKlineSlice : public WTSObject
 {
 private:
-	char			_code[MAX_INSTRUMENT_LENGTH];
-	WTSKlinePeriod	_period;
-	uint32_t		_times;
-	typedef std::pair<WTSBarStruct*, uint32_t> BarBlock;
-	std::vector<BarBlock> _blocks;
-	uint32_t		_count;
+	char			_code[MAX_INSTRUMENT_LENGTH];  // 合约代码
+	WTSKlinePeriod	_period;                       // K线周期
+	uint32_t		_times;                         // 周期倍数
+	typedef std::pair<WTSBarStruct*, uint32_t> BarBlock;  // 数据块类型：指针+大小
+	std::vector<BarBlock> _blocks;                 // 数据块列表
+	uint32_t		_count;                         // 总数据条数
 
 protected:
 	WTSKlineSlice()
@@ -244,74 +301,106 @@ public:
 		return pRet;
 	}
 
+	/*
+	 *	追加数据块到切片中
+	 *	@param bars K线数据指针
+	 *	@param count 数据条数
+	 *	@return 成功返回true，失败返回false
+	 */
 	inline bool appendBlock(WTSBarStruct* bars, uint32_t count)
 	{
-		if (bars == NULL || count == 0)
+		if (bars == NULL || count == 0)  // 检查参数有效性
 			return false;
 
-		_count += count;
-		_blocks.emplace_back(BarBlock(bars, count));
+		_count += count;  // 更新总数据条数
+		_blocks.emplace_back(BarBlock(bars, count));  // 添加新的数据块
 		return true;
 	}
 
+	/*
+	 *	获取数据块的数量
+	 *	@return 数据块总数
+	 */
 	inline std::size_t	get_block_counts() const
 	{
-		return _blocks.size();
+		return _blocks.size();  // 返回数据块向量的大小
 	}
 
+	/*
+	 *	获取指定数据块的地址
+	 *	@param blkIdx 数据块索引
+	 *	@return 数据块的起始地址，索引无效时返回NULL
+	 */
 	inline WTSBarStruct*	get_block_addr(std::size_t blkIdx)
 	{
-		if (blkIdx >= _blocks.size())
+		if (blkIdx >= _blocks.size())  // 检查索引范围
 			return NULL;
 
-		return _blocks[blkIdx].first;
+		return _blocks[blkIdx].first;  // 返回数据块的起始指针
 	}
 
+	/*
+	 *	获取指定数据块的大小
+	 *	@param blkIdx 数据块索引
+	 *	@return 数据块中的数据条数，索引无效时返回0
+	 */
 	inline uint32_t get_block_size(std::size_t blkIdx)
 	{
-		if (blkIdx >= _blocks.size())
+		if (blkIdx >= _blocks.size())  // 检查索引范围
 			return 0;
 
-		return _blocks[blkIdx].second;
+		return _blocks[blkIdx].second;  // 返回数据块的大小
 	}
 
+	/*
+	 *	获取指定位置的K线数据（非常量版本）
+	 *	支持跨数据块的索引访问，自动处理数据块边界
+	 *	@param idx 数据索引，支持负数索引
+	 *	@return 指定位置的K线数据指针，无效时返回NULL
+	 */
 	inline WTSBarStruct*	at(int32_t idx)
 	{
-		if (_count == 0)
+		if (_count == 0)  // 检查是否有数据
 			return NULL;
 
-		idx = translateIdx(idx);
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
 		do
 		{
-			for (auto& item : _blocks)
+			for (auto& item : _blocks)  // 遍历所有数据块
 			{
-				if ((uint32_t)idx >= item.second)
-					idx -= item.second;
+				if ((uint32_t)idx >= item.second)  // 如果索引超出当前块
+					idx -= item.second;  // 减去当前块的大小，继续查找
 				else
-					return item.first + idx;
+					return item.first + idx;  // 在当前块中找到，返回对应位置
 			}
 		} while (false);
 
-		return NULL;
+		return NULL;  // 未找到有效数据
 	}
 
+	/*
+	 *	获取指定位置的K线数据（常量版本）
+	 *	支持跨数据块的索引访问，自动处理数据块边界
+	 *	@param idx 数据索引，支持负数索引
+	 *	@return 指定位置的K线数据指针（只读），无效时返回NULL
+	 */
 	inline const WTSBarStruct*	at(int32_t idx) const
 	{
-		if (_count == 0)
+		if (_count == 0)  // 检查是否有数据
 			return NULL;
 
-		idx = translateIdx(idx);
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
 		do
 		{
-			for (auto& item : _blocks)
+			for (auto& item : _blocks)  // 遍历所有数据块
 			{
-				if ((uint32_t)idx >= item.second)
-					idx -= item.second;
+				if ((uint32_t)idx >= item.second)  // 如果索引超出当前块
+					idx -= item.second;  // 减去当前块的大小，继续查找
 				else
-					return item.first + idx;
+					return item.first + idx;  // 在当前块中找到，返回对应位置
 			}
 		} while (false);
-		return NULL;
+		return NULL;  // 未找到有效数据
 	}
 
 
@@ -439,10 +528,19 @@ public:
  *	因为K线数据单独使用的可能性较低
  *	所以不做WTSObject派生类的封装
  */
+/**
+ * K线数据类
+ * 管理完整的K线数据序列，支持多种周期和时间框架
+ * 主要功能：
+ * - 存储OHLCV等K线数据
+ * - 支持不同周期（分钟、小时、日线等）
+ * - 提供数据访问和统计功能
+ * - 支持数据追加和更新
+ */
 class WTSKlineData : public WTSObject
 {
 public:
-	typedef std::vector<WTSBarStruct> WTSBarList;
+	typedef std::vector<WTSBarStruct> WTSBarList;  // K线数据列表类型别名
 
 protected:
 	char			m_strCode[32];
@@ -853,10 +951,19 @@ public:
  *	内部封装WTSTickStruct
  *	封装的主要目的是出于跨语言的考虑
  */
+/**
+ * Tick数据类
+ * 封装实时行情数据，包含价格、成交量、买卖盘等详细信息
+ * 继承自WTSPoolObject以支持对象池管理，提高性能
+ * 主要特点：
+ * - 支持10档买卖盘数据
+ * - 包含OHLC、成交量、成交额等完整信息
+ * - 支持合约信息关联
+ */
 class WTSTickData : public WTSPoolObject<WTSTickData>
 {
 public:
-	WTSTickData() :m_pContract(NULL) {}
+	WTSTickData() :m_pContract(NULL) {}  // 构造函数：初始化合约信息指针为空
 
 	/*
 	 *	创建一个tick数据对象
