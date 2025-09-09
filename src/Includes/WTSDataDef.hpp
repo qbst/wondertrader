@@ -5,7 +5,7 @@
  * \author Wesley
  * \date 2020/03/30
  * 
- * \brief Wt行情数据定义文件,包括tick、bar、orderqueue、orderdetail、transaction等数据
+ * \brief WonderTrader行情数据定义文件，包含tick、bar、orderqueue、orderdetail、transaction等数据结构
  * 
  * 文件设计逻辑与作用总结：
  * 本文件是WonderTrader系统的核心数据定义文件，定义了量化交易中所有重要的数据结构。
@@ -46,11 +46,14 @@ using namespace std;          // 使用标准命名空间
 NS_WTP_BEGIN  // 开始WonderTrader命名空间
 class WTSContractInfo;  // 前向声明：合约信息类
 
-/*
- *	数值数组的内部封装
- *	采用std::vector实现
- *	包含数据格式化字符串
- *	数值的数据类型为double
+/**
+ * 数值数组类
+ * 用于存储和处理数值序列数据，支持统计计算和数据分析
+ * 主要特点：
+ * - 采用std::vector<double>作为底层存储
+ * - 支持负索引访问，便于历史数据分析
+ * - 提供最大值、最小值等统计功能
+ * - 继承自WTSObject，支持引用计数和自动内存管理
  */
 class WTSValueArray : public WTSObject  // 数值数组类，继承自WTSObject以支持引用计数
 {
@@ -58,9 +61,9 @@ protected:
 	vector<double>	m_vecData;  // 存储数值数据的向量容器，数据类型为double
 
 public:
-	/*
-	 *	创建一个数值数组对象
-	 *	@decimal 保留的小数点位数
+	/**
+	 * 静态工厂方法：创建数值数组对象
+	 * @return 新创建的数值数组对象指针，调用者负责管理其生命周期
 	 */
 	static WTSValueArray* create()  // 静态工厂方法：创建数值数组对象
 	{
@@ -69,16 +72,22 @@ public:
 		return pRet;                              // 返回创建的实例指针
 	}
 
-	/*
-	 *	读取数组的长度
+	/**
+	 * 获取数组长度
+	 * @return 数组中元素的个数
 	 */
 	inline uint32_t	size() const{ return m_vecData.size(); }  // 内联函数：返回数组当前元素个数
+	
+	/**
+	 * 检查数组是否为空
+	 * @return 如果数组为空返回true，否则返回false
+	 */
 	inline bool		empty() const{ return m_vecData.empty(); }  // 内联函数：检查数组是否为空
 
-	/*
-	 *	读取指定位置的数据
-	 *	@param idx 数据索引，支持负数索引（-1表示最后一个元素）
-	 *	@return 指定位置的数值，如果超出范围则返回INVALID_DOUBLE
+	/**
+	 * 读取指定位置的数据
+	 * @param idx 数据索引，支持负数索引（-1表示最后一个元素）
+	 * @return 指定位置的数值，如果超出范围则返回INVALID_DOUBLE
 	 */
 	inline double		at(uint32_t idx) const
 	{
@@ -90,11 +99,11 @@ public:
 		return m_vecData[idx];  // 返回指定位置的数据
 	}
 
-	/*
-	 *	索引转换函数
-	 *	将负数索引转换为正数索引，支持Python风格的负数索引
-	 *	@param idx 原始索引
-	 *	@return 转换后的正数索引
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
 	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
@@ -106,12 +115,12 @@ public:
 		return idx;  // 正数索引直接返回
 	}
 
-	/*
-	 *	找到指定范围内的最大值
-	 *	@param head 起始索引，支持负数索引
-	 *	@param tail 结束索引，支持负数索引
-	 *	@param isAbs 是否取绝对值进行比较
-	 *	@return 范围内的最大值，如果超出范围则返回INVALID_DOUBLE
+	/**
+	 * 找到指定范围内的最大值
+	 * @param head 起始索引，支持负数索引
+	 * @param tail 结束索引，支持负数索引
+	 * @param isAbs 是否取绝对值进行比较
+	 * @return 范围内的最大值，如果超出范围则返回INVALID_DOUBLE
 	 */
 	double		maxvalue(int32_t head, int32_t tail, bool isAbs = false) const
 	{
@@ -142,12 +151,12 @@ public:
 		return maxValue;  // 返回找到的最大值
 	}
 
-	/*
-	 *	找到指定范围内的最小值
-	 *	@param head 起始索引，支持负数索引
-	 *	@param tail 结束索引，支持负数索引
-	 *	@param isAbs 是否取绝对值进行比较
-	 *	@return 范围内的最小值，如果超出范围则返回INVALID_DOUBLE
+	/**
+	 * 找到指定范围内的最小值
+	 * @param head 起始索引，支持负数索引
+	 * @param tail 结束索引，支持负数索引
+	 * @param isAbs 是否取绝对值进行比较
+	 * @return 范围内的最小值，如果超出范围则返回INVALID_DOUBLE
 	 */
 	double		minvalue(int32_t head, int32_t tail, bool isAbs = false) const
 	{
@@ -178,19 +187,19 @@ public:
 		return minValue;  // 返回找到的最小值
 	}
 
-	/*
-	 *	在数组末尾添加数据
-	 *	@param val 要添加的数值
+	/**
+	 * 在数组末尾添加数据
+	 * @param val 要添加的数值
 	 */
 	inline void		append(double val)
 	{
 		m_vecData.emplace_back(val);  // 在向量末尾就地构造新元素
 	}
 
-	/*
-	 *	设置指定位置的数据
-	 *	@param idx 数据索引位置
-	 *	@param val 要设置的数值
+	/**
+	 * 设置指定位置的数据
+	 * @param idx 数据索引位置
+	 * @param val 要设置的数值
 	 */
 	inline void		set(uint32_t idx, double val)
 	{
@@ -200,42 +209,42 @@ public:
 		m_vecData[idx] = val;  // 设置指定位置的值
 	}
 
-	/*
-	 *	重新分配数组大小，并设置默认值
-	 *	@param uSize 新的数组大小
-	 *	@param val 新元素的默认值，默认为INVALID_DOUBLE
+	/**
+	 * 重新分配数组大小，并设置默认值
+	 * @param uSize 新的数组大小
+	 * @param val 新元素的默认值，默认为INVALID_DOUBLE
 	 */
 	inline void		resize(uint32_t uSize, double val = INVALID_DOUBLE)
 	{
 		m_vecData.resize(uSize, val);  // 调整向量大小并填充默认值
 	}
 
-	/*
-	 *	重载操作符[]（非常量版本）
-	 *	提供数组式访问，返回可修改的引用
-	 *	@param idx 数据索引
-	 *	@return 指定位置元素的引用
+	/**
+	 * 重载操作符[]（非常量版本）
+	 * 提供数组式访问，返回可修改的引用
+	 * @param idx 数据索引
+	 * @return 指定位置元素的引用
 	 */
 	inline double&		operator[](uint32_t idx)
 	{
 		return m_vecData[idx];  // 返回可修改的元素引用
 	}
 
-	/*
-	 *	重载操作符[]（常量版本）
-	 *	提供数组式访问，返回只读值
-	 *	@param idx 数据索引
-	 *	@return 指定位置元素的值
+	/**
+	 * 重载操作符[]（常量版本）
+	 * 提供数组式访问，返回只读值
+	 * @param idx 数据索引
+	 * @return 指定位置元素的值
 	 */
 	inline double		operator[](uint32_t idx) const
 	{
 		return m_vecData[idx];  // 返回元素值（只读）
 	}
 
-	/*
-	 *	获取内部数据向量的引用
-	 *	用于直接访问底层存储，提高性能
-	 *	@return 内部vector<double>的引用
+	/**
+	 * 获取内部数据向量的引用
+	 * 用于直接访问底层存储，提高性能
+	 * @return 内部vector<double>的引用
 	 */
 	inline std::vector<double>& getDataRef()
 	{
@@ -243,11 +252,6 @@ public:
 	}
 };
 
-/*
- *	K线数据切片
- *	这个比较特殊,因为要拼接当日和历史的
- *	所以有两个开始地址
- */
 /**
  * K线数据切片类
  * 用于高效访问K线数据的特定时间段，支持多数据源的拼接
@@ -255,48 +259,69 @@ public:
  * - 不复制数据，只记录数据块的引用和大小
  * - 支持当日数据和历史数据的拼接
  * - 提供负索引访问，便于历史数据分析
+ * - 支持跨数据块的索引访问
  */
 class WTSKlineSlice : public WTSObject
 {
 private:
 	char			_code[MAX_INSTRUMENT_LENGTH];  // 合约代码
-	WTSKlinePeriod	_period;                       // K线周期
-	uint32_t		_times;                         // 周期倍数
+	WTSKlinePeriod	_period;                       // K线周期（分钟、小时、日线等）
+	uint32_t		_times;                         // 周期倍数（如5分钟K线的倍数为5）
 	typedef std::pair<WTSBarStruct*, uint32_t> BarBlock;  // 数据块类型：指针+大小
-	std::vector<BarBlock> _blocks;                 // 数据块列表
+	std::vector<BarBlock> _blocks;                 // 数据块列表，支持多数据源拼接
 	uint32_t		_count;                         // 总数据条数
 
 protected:
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 * 默认初始化为1分钟K线，倍数为1，数据条数为0
+	 */
 	WTSKlineSlice()
-		: _period(KP_Minute1)
-		, _times(1)
-		, _count(0)
+		: _period(KP_Minute1)  // 默认为1分钟K线
+		, _times(1)            // 默认倍数为1
+		, _count(0)            // 初始数据条数为0
 	{
 
 	}
 
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		int32_t totalCnt = _count;
-		if (idx < 0)
+		int32_t totalCnt = _count;  // 获取总数据条数
+		if (idx < 0)  // 如果是负数索引
 		{
-			return max(0, totalCnt + idx);
+			return max(0, totalCnt + idx);  // 从数据末尾开始计算索引，确保不小于0
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 
 public:
+	/**
+	 * 静态工厂方法：创建K线数据切片对象
+	 * @param code 合约代码
+	 * @param period K线周期（分钟、小时、日线等）
+	 * @param times 周期倍数（如5分钟K线的倍数为5）
+	 * @param bars K线数据指针，可以为NULL
+	 * @param count 数据条数，默认为0
+	 * @return 新创建的K线数据切片对象指针
+	 */
 	static WTSKlineSlice* create(const char* code, WTSKlinePeriod period, uint32_t times, WTSBarStruct* bars = NULL, int32_t count = 0)
 	{
 		WTSKlineSlice *pRet = new WTSKlineSlice;
-		wt_strcpy(pRet->_code, code);
-		pRet->_period = period;
-		pRet->_times = times;
-		if(bars)
-			pRet->_blocks.emplace_back(BarBlock(bars, count));
-		pRet->_count = count;
+		wt_strcpy(pRet->_code, code);    // 复制合约代码
+		pRet->_period = period;          // 设置K线周期
+		pRet->_times = times;            // 设置周期倍数
+		if(bars)  // 如果提供了初始数据
+			pRet->_blocks.emplace_back(BarBlock(bars, count));  // 添加数据块
+		pRet->_count = count;            // 设置总数据条数
 
 		return pRet;
 	}
@@ -543,62 +568,101 @@ public:
 	typedef std::vector<WTSBarStruct> WTSBarList;  // K线数据列表类型别名
 
 protected:
-	char			m_strCode[32];
-	WTSKlinePeriod	m_kpPeriod;
-	uint32_t		m_uTimes;
-	bool			m_bUnixTime;	//是否是时间戳格式,目前只在秒线上有效
-	WTSBarList		m_vecBarData;
-	bool			m_bClosed;		//是否是闭合K线
+	char			m_strCode[32];    // 合约代码，最多31个字符
+	WTSKlinePeriod	m_kpPeriod;      // K线周期（分钟、小时、日线等）
+	uint32_t		m_uTimes;        // 周期倍数（如5分钟K线的倍数为5）
+	bool			m_bUnixTime;     // 是否是时间戳格式，目前只在秒线上有效
+	WTSBarList		m_vecBarData;    // K线数据向量容器
+	bool			m_bClosed;       // 是否是闭合K线（已完成的K线）
 
 protected:
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 * 默认初始化为1分钟K线，倍数为1，非时间戳格式，闭合K线
+	 */
 	WTSKlineData()
-		:m_kpPeriod(KP_Minute1)
-		,m_uTimes(1)
-		,m_bUnixTime(false)
-		,m_bClosed(true)
+		:m_kpPeriod(KP_Minute1)  // 默认为1分钟K线
+		,m_uTimes(1)             // 默认倍数为1
+		,m_bUnixTime(false)      // 默认非时间戳格式
+		,m_bClosed(true)         // 默认为闭合K线
 	{
 
 	}
 
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		if(idx < 0)
+		if(idx < 0)  // 如果是负数索引
 		{
-			return max(0, (int32_t)m_vecBarData.size() + idx);
+			return max(0, (int32_t)m_vecBarData.size() + idx);  // 从数据末尾开始计算索引
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 public:
-	/*
-	 *	创建一个K线数据对象
-	 *	@code 要创建的合约代码
-	 *	@size 初始分配的数据长度
+	/**
+	 * 静态工厂方法：创建K线数据对象
+	 * @param code 要创建的合约代码
+	 * @param size 初始分配的数据长度
+	 * @return 新创建的K线数据对象指针
 	 */
 	static WTSKlineData* create(const char* code, uint32_t size)
 	{
 		WTSKlineData *pRet = new WTSKlineData;
-		pRet->m_vecBarData.resize(size);
-		wt_strcpy(pRet->m_strCode, code);
+		pRet->m_vecBarData.resize(size);  // 预分配指定大小的空间
+		wt_strcpy(pRet->m_strCode, code); // 复制合约代码
 
 		return pRet;
 	}
 
+	/**
+	 * 设置K线闭合状态
+	 * @param bClosed 是否为闭合K线
+	 */
 	inline void setClosed(bool bClosed){ m_bClosed = bClosed; }
+	
+	/**
+	 * 获取K线闭合状态
+	 * @return 如果是闭合K线返回true，否则返回false
+	 */
 	inline bool isClosed() const{ return m_bClosed; }
 
-	/*
-	 *	设置周期和步长
-	 *	@period	基础周期
-	 *	@times 倍数
+	/**
+	 * 设置K线周期和倍数
+	 * @param period 基础周期（分钟、小时、日线等）
+	 * @param times 倍数，默认为1
 	 */
 	inline void	setPeriod(WTSKlinePeriod period, uint32_t times = 1){ m_kpPeriod = period; m_uTimes = times; }
 
+	/**
+	 * 设置是否使用Unix时间戳格式
+	 * @param bEnabled 是否启用，默认为true
+	 */
 	inline void	setUnixTime(bool bEnabled = true){ m_bUnixTime = bEnabled; }
 
+	/**
+	 * 获取K线周期
+	 * @return K线周期枚举值
+	 */
 	inline WTSKlinePeriod	period() const{ return m_kpPeriod; }
+	
+	/**
+	 * 获取周期倍数
+	 * @return 周期倍数值
+	 */
 	inline uint32_t		times() const{ return m_uTimes; }
+	
+	/**
+	 * 检查是否使用Unix时间戳格式
+	 * @return 如果使用时间戳格式返回true，否则返回false
+	 */
 	inline bool			isUnixTime() const{ return m_bUnixTime; }
 
 	/*
@@ -1120,466 +1184,852 @@ public:
 	inline WTSContractInfo* getContractInfo() const { return m_pContract; }
 
 private:
-	WTSTickStruct		m_tickStruct;
-	WTSContractInfo*	m_pContract;
+	WTSTickStruct		m_tickStruct;  // Tick数据结构体，存储核心行情数据
+	WTSContractInfo*	m_pContract;   // 关联的合约信息对象指针
 };
 
+/**
+ * 委托队列数据类
+ * 封装订单簿深度数据，包含特定价格档位的委托队列信息
+ * 主要特点：
+ * - 包含某个价格档位的所有委托订单详情
+ * - 支持50档委托数量的详细分布
+ * - 提供买卖方向标识
+ * - 继承自WTSObject，支持引用计数管理
+ */
 class WTSOrdQueData : public WTSObject
 {
 public:
+	/**
+	 * 静态工厂方法：根据合约代码创建委托队列数据对象
+	 * @param code 合约代码
+	 * @return 新创建的委托队列数据对象指针
+	 */
 	static inline WTSOrdQueData* create(const char* code)
 	{
 		WTSOrdQueData* pRet = new WTSOrdQueData;
-		wt_strcpy(pRet->m_oqStruct.code, code);
+		wt_strcpy(pRet->m_oqStruct.code, code);  // 复制合约代码到结构体
 		return pRet;
 	}
 
+	/**
+	 * 静态工厂方法：根据委托队列结构体创建数据对象
+	 * @param ordQueData 委托队列结构体引用
+	 * @return 新创建的委托队列数据对象指针
+	 */
 	static inline WTSOrdQueData* create(WTSOrdQueStruct& ordQueData)
 	{
 		WTSOrdQueData* pRet = new WTSOrdQueData;
-		memcpy(&pRet->m_oqStruct, &ordQueData, sizeof(WTSOrdQueStruct));
+		memcpy(&pRet->m_oqStruct, &ordQueData, sizeof(WTSOrdQueStruct));  // 复制整个结构体数据
 
 		return pRet;
 	}
 
+	/**
+	 * 获取内部委托队列结构体的引用
+	 * @return 委托队列结构体的引用，用于直接访问底层数据
+	 */
 	inline WTSOrdQueStruct& getOrdQueStruct(){return m_oqStruct;}
 
+	/**
+	 * 获取交易所代码
+	 * @return 交易所代码字符串
+	 */
 	inline const char* exchg() const{ return m_oqStruct.exchg; }
+	
+	/**
+	 * 获取合约代码
+	 * @return 合约代码字符串
+	 */
 	inline const char* code() const{ return m_oqStruct.code; }
+	
+	/**
+	 * 获取交易日期
+	 * @return 交易日期，格式为YYYYMMDD
+	 */
 	inline uint32_t tradingdate() const{ return m_oqStruct.trading_date; }
+	
+	/**
+	 * 获取自然日期
+	 * @return 自然日期，格式为YYYYMMDD
+	 */
 	inline uint32_t actiondate() const{ return m_oqStruct.action_date; }
+	
+	/**
+	 * 获取发生时间
+	 * @return 发生时间，格式为HHMMSSmmm（精确到毫秒）
+	 */
 	inline uint32_t actiontime() const { return m_oqStruct.action_time; }
 
+	/**
+	 * 设置合约代码
+	 * @param code 新的合约代码
+	 */
 	inline void		setCode(const char* code) { wt_strcpy(m_oqStruct.code, code); }
 
+	/**
+	 * 设置关联的合约信息对象
+	 * @param cInfo 合约信息对象指针
+	 */
 	inline void setContractInfo(WTSContractInfo* cInfo) { m_pContract = cInfo; }
+	
+	/**
+	 * 获取关联的合约信息对象
+	 * @return 合约信息对象指针
+	 */
 	inline WTSContractInfo* getContractInfo() const { return m_pContract; }
 
 private:
-	WTSOrdQueStruct		m_oqStruct;
-	WTSContractInfo*	m_pContract;
+	WTSOrdQueStruct		m_oqStruct;   // 委托队列结构体，存储核心数据
+	WTSContractInfo*	m_pContract;  // 关联的合约信息对象指针
 };
 
+/**
+ * 逐笔委托明细数据类
+ * 封装每个进入订单簿的委托订单详细信息
+ * 主要特点：
+ * - 记录每笔委托的详细信息（价格、数量、方向等）
+ * - 提供委托编号的唯一标识
+ * - 支持不同委托类型（限价单、市价单等）
+ * - 继承自WTSObject，支持引用计数管理
+ */
 class WTSOrdDtlData : public WTSObject
 {
 public:
+	/**
+	 * 静态工厂方法：根据合约代码创建逐笔委托明细数据对象
+	 * @param code 合约代码
+	 * @return 新创建的逐笔委托明细数据对象指针
+	 */
 	static inline WTSOrdDtlData* create(const char* code)
 	{
 		WTSOrdDtlData* pRet = new WTSOrdDtlData;
-		wt_strcpy(pRet->m_odStruct.code, code);
+		wt_strcpy(pRet->m_odStruct.code, code);  // 复制合约代码到结构体
 		return pRet;
 	}
 
+	/**
+	 * 静态工厂方法：根据逐笔委托结构体创建数据对象
+	 * @param odData 逐笔委托结构体引用
+	 * @return 新创建的逐笔委托明细数据对象指针
+	 */
 	static inline WTSOrdDtlData* create(WTSOrdDtlStruct& odData)
 	{
 		WTSOrdDtlData* pRet = new WTSOrdDtlData;
-		memcpy(&pRet->m_odStruct, &odData, sizeof(WTSOrdDtlStruct));
+		memcpy(&pRet->m_odStruct, &odData, sizeof(WTSOrdDtlStruct));  // 复制整个结构体数据
 
 		return pRet;
 	}
 
+	/**
+	 * 获取内部逐笔委托结构体的引用
+	 * @return 逐笔委托结构体的引用，用于直接访问底层数据
+	 */
 	inline WTSOrdDtlStruct& getOrdDtlStruct(){ return m_odStruct; }
 
+	/**
+	 * 获取交易所代码
+	 * @return 交易所代码字符串
+	 */
 	inline const char* exchg() const{ return m_odStruct.exchg; }
+	
+	/**
+	 * 获取合约代码
+	 * @return 合约代码字符串
+	 */
 	inline const char* code() const{ return m_odStruct.code; }
+	
+	/**
+	 * 获取交易日期
+	 * @return 交易日期，格式为YYYYMMDD
+	 */
 	inline uint32_t tradingdate() const{ return m_odStruct.trading_date; }
+	
+	/**
+	 * 获取自然日期
+	 * @return 自然日期，格式为YYYYMMDD
+	 */
 	inline uint32_t actiondate() const{ return m_odStruct.action_date; }
+	
+	/**
+	 * 获取发生时间
+	 * @return 发生时间，格式为HHMMSSmmm（精确到毫秒）
+	 */
 	inline uint32_t actiontime() const { return m_odStruct.action_time; }
 
+	/**
+	 * 设置合约代码
+	 * @param code 新的合约代码
+	 */
 	inline void		setCode(const char* code) { wt_strcpy(m_odStruct.code, code); }
 
+	/**
+	 * 设置关联的合约信息对象
+	 * @param cInfo 合约信息对象指针
+	 */
 	inline void setContractInfo(WTSContractInfo* cInfo) { m_pContract = cInfo; }
+	
+	/**
+	 * 获取关联的合约信息对象
+	 * @return 合约信息对象指针
+	 */
 	inline WTSContractInfo* getContractInfo() const { return m_pContract; }
 
 
 private:
-	WTSOrdDtlStruct		m_odStruct;
-	WTSContractInfo*	m_pContract;
+	WTSOrdDtlStruct		m_odStruct;   // 逐笔委托结构体，存储核心数据
+	WTSContractInfo*	m_pContract;  // 关联的合约信息对象指针
 };
 
+/**
+ * 逐笔成交数据类
+ * 封装每笔真实成交的详细信息
+ * 主要特点：
+ * - 记录每笔成交的价格、数量、方向等详细信息
+ * - 提供成交编号的唯一标识
+ * - 包含买卖双方的委托序号
+ * - 支持不同成交类型（主动买入、主动卖出等）
+ * - 继承自WTSObject，支持引用计数管理
+ */
 class WTSTransData : public WTSObject
 {
 public:
+	/**
+	 * 静态工厂方法：根据合约代码创建逐笔成交数据对象
+	 * @param code 合约代码
+	 * @return 新创建的逐笔成交数据对象指针
+	 */
 	static inline WTSTransData* create(const char* code)
 	{
 		WTSTransData* pRet = new WTSTransData;
-		wt_strcpy(pRet->m_tsStruct.code, code);
+		wt_strcpy(pRet->m_tsStruct.code, code);  // 复制合约代码到结构体
 		return pRet;
 	}
 
+	/**
+	 * 静态工厂方法：根据逐笔成交结构体创建数据对象
+	 * @param transData 逐笔成交结构体引用
+	 * @return 新创建的逐笔成交数据对象指针
+	 */
 	static inline WTSTransData* create(WTSTransStruct& transData)
 	{
 		WTSTransData* pRet = new WTSTransData;
-		memcpy(&pRet->m_tsStruct, &transData, sizeof(WTSTransStruct));
+		memcpy(&pRet->m_tsStruct, &transData, sizeof(WTSTransStruct));  // 复制整个结构体数据
 
 		return pRet;
 	}
 
+	/**
+	 * 获取交易所代码
+	 * @return 交易所代码字符串
+	 */
 	inline const char* exchg() const{ return m_tsStruct.exchg; }
+	
+	/**
+	 * 获取合约代码
+	 * @return 合约代码字符串
+	 */
 	inline const char* code() const{ return m_tsStruct.code; }
+	
+	/**
+	 * 获取交易日期
+	 * @return 交易日期，格式为YYYYMMDD
+	 */
 	inline uint32_t tradingdate() const{ return m_tsStruct.trading_date; }
+	
+	/**
+	 * 获取自然日期
+	 * @return 自然日期，格式为YYYYMMDD
+	 */
 	inline uint32_t actiondate() const{ return m_tsStruct.action_date; }
+	
+	/**
+	 * 获取发生时间
+	 * @return 发生时间，格式为HHMMSSmmm（精确到毫秒）
+	 */
 	inline uint32_t actiontime() const { return m_tsStruct.action_time; }
 
+	/**
+	 * 获取内部逐笔成交结构体的引用
+	 * @return 逐笔成交结构体的引用，用于直接访问底层数据
+	 */
 	inline WTSTransStruct& getTransStruct(){ return m_tsStruct; }
 
+	/**
+	 * 设置合约代码
+	 * @param code 新的合约代码
+	 */
 	inline void		setCode(const char* code) { wt_strcpy(m_tsStruct.code, code); }
 
+	/**
+	 * 设置关联的合约信息对象
+	 * @param cInfo 合约信息对象指针
+	 */
 	inline void setContractInfo(WTSContractInfo* cInfo) { m_pContract = cInfo; }
+	
+	/**
+	 * 获取关联的合约信息对象
+	 * @return 合约信息对象指针
+	 */
 	inline WTSContractInfo* getContractInfo() const { return m_pContract; }
 
 private:
-	WTSTransStruct		m_tsStruct;
-	WTSContractInfo*	m_pContract;
+	WTSTransStruct		m_tsStruct;   // 逐笔成交结构体，存储核心数据
+	WTSContractInfo*	m_pContract;  // 关联的合约信息对象指针
 };
 
-/*
- *	@brief 历史Tick数据数组
- *	@details 内部使用WTSArray作为容器
+/**
+ * 历史Tick数据数组类
+ * 用于存储和管理历史Tick数据序列
+ * 主要特点：
+ * - 内部使用std::vector<WTSTickStruct>作为容器
+ * - 支持复权因子调整价格数据
+ * - 提供有效数据过滤功能
+ * - 支持批量数据操作
+ * - 继承自WTSObject，支持引用计数管理
  */
 class WTSHisTickData : public WTSObject
 {
 protected:
-	char						m_strCode[32];
-	std::vector<WTSTickStruct>	m_ayTicks;
-	bool						m_bValidOnly;
-	double						m_dFactor;
+	char						m_strCode[32];     // 合约代码，最多31个字符
+	std::vector<WTSTickStruct>	m_ayTicks;        // Tick数据向量容器
+	bool						m_bValidOnly;     // 是否只包含有效数据
+	double						m_dFactor;       // 复权因子，用于价格调整
 
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 */
 	WTSHisTickData() :m_bValidOnly(false), m_dFactor(1.0){}
 
 public:
-	/*
-	 *	@brief 创建指定大小的tick数组对象
-	 *	@details 内部的数组预先分配大小
-	 *
-	 *	@param stdCode 合约代码
-	 *	@param nSize 预先分配的大小
+	/**
+	 * 静态工厂方法：创建指定大小的历史Tick数据对象
+	 * 内部的数组会预先分配指定大小的空间
+	 * 
+	 * @param stdCode 合约代码
+	 * @param nSize 预先分配的大小，默认为0（不预分配）
+	 * @param bValidOnly 是否只包含有效数据，默认为false
+	 * @param factor 复权因子，默认为1.0（不复权）
+	 * @return 新创建的历史Tick数据对象指针
 	 */
 	static inline WTSHisTickData* create(const char* stdCode, unsigned int nSize = 0, bool bValidOnly = false, double factor = 1.0)
 	{
 		WTSHisTickData *pRet = new WTSHisTickData;
-		wt_strcpy(pRet->m_strCode, stdCode);
-		pRet->m_ayTicks.resize(nSize);
-		pRet->m_bValidOnly = bValidOnly;
-		pRet->m_dFactor = factor;
+		wt_strcpy(pRet->m_strCode, stdCode);    // 复制合约代码
+		pRet->m_ayTicks.resize(nSize);          // 预分配指定大小的空间
+		pRet->m_bValidOnly = bValidOnly;        // 设置有效数据标志
+		pRet->m_dFactor = factor;               // 设置复权因子
 
 		return pRet;
 	}
 
-	/*
-	 *	@brief 根据tick数组对象创建历史tick数据对象
-	 *	@details 内部的tick数组不用再分配了
-
-	 *	@param ayTicks tick数组对象指针
+	/**
+	 * 静态工厂方法：创建历史Tick数据对象（不预分配空间）
+	 * 内部的Tick数组不预分配空间，根据需要动态增长
+	 * 
+	 * @param stdCode 合约代码
+	 * @param bValidOnly 是否只包含有效数据，默认为false
+	 * @param factor 复权因子，默认为1.0（不复权）
+	 * @return 新创建的历史Tick数据对象指针
 	 */
 	static inline WTSHisTickData* create(const char* stdCode, bool bValidOnly = false, double factor = 1.0)
 	{
 		WTSHisTickData *pRet = new WTSHisTickData;
-		wt_strcpy(pRet->m_strCode, stdCode);
-		pRet->m_bValidOnly = bValidOnly;
-		pRet->m_dFactor = factor;
+		wt_strcpy(pRet->m_strCode, stdCode);    // 复制合约代码
+		pRet->m_bValidOnly = bValidOnly;        // 设置有效数据标志
+		pRet->m_dFactor = factor;               // 设置复权因子
 
 		return pRet;
 	}
 
-	//读取tick数据的条数
+	/**
+	 * 获取Tick数据的条数
+	 * @return Tick数据的总条数
+	 */
 	inline uint32_t	size() const{ return m_ayTicks.size(); }
+	
+	/**
+	 * 检查数据是否为空
+	 * @return 如果没有数据返回true，否则返回false
+	 */
 	inline bool		empty() const{ return m_ayTicks.empty(); }
 
-	//读取该数据对应的合约代码
+	/**
+	 * 获取该数据对应的合约代码
+	 * @return 合约代码字符串
+	 */
 	inline const char*		code() const{ return m_strCode; }
 
-	/*
-	 *	获取指定位置的tick数据
-	 *	
+	/**
+	 * 获取指定位置的Tick数据
+	 * @param idx 数据索引位置
+	 * @return 指定位置的Tick数据指针，如果索引无效则返回NULL
 	 */
 	inline WTSTickStruct*	at(uint32_t idx)
 	{
-		if (m_ayTicks.empty() || idx >= m_ayTicks.size())
+		if (m_ayTicks.empty() || idx >= m_ayTicks.size())  // 检查索引有效性
 			return NULL;
 
-		return &m_ayTicks[idx];
+		return &m_ayTicks[idx];  // 返回指定位置的数据指针
 	}
 
+	/**
+	 * 获取内部数据向量的引用
+	 * 用于直接访问底层存储，提高性能
+	 * @return 内部vector<WTSTickStruct>的引用
+	 */
 	inline std::vector<WTSTickStruct>& getDataRef() { return m_ayTicks; }
 
+	/**
+	 * 检查是否只包含有效数据
+	 * @return 如果只包含有效数据返回true，否则返回false
+	 */
 	inline bool isValidOnly() const{ return m_bValidOnly; }
 
-	/*
-	*	追加一条Tick
-	*/
+	/**
+	 * 追加一条Tick数据
+	 * 会自动应用复权因子调整价格数据
+	 * @param ts 要追加的Tick结构体
+	 */
 	inline void	appendTick(const WTSTickStruct& ts)
 	{
-		m_ayTicks.emplace_back(ts);
-		//复权修正
-		m_ayTicks.back().price *= m_dFactor;
-		m_ayTicks.back().open *= m_dFactor;
-		m_ayTicks.back().high *= m_dFactor;
-		m_ayTicks.back().low *= m_dFactor;
+		m_ayTicks.emplace_back(ts);  // 在向量末尾就地构造新元素
+		
+		// 复权修正：对价格数据应用复权因子
+		m_ayTicks.back().price *= m_dFactor;  // 最新价复权
+		m_ayTicks.back().open *= m_dFactor;   // 开盘价复权
+		m_ayTicks.back().high *= m_dFactor;   // 最高价复权
+		m_ayTicks.back().low *= m_dFactor;    // 最低价复权
 	}
 };
 
-//////////////////////////////////////////////////////////////////////////
-/*
- *	@brief Tick数据切片,从连续的tick缓存中做的切片
- *	@details 切片并没有真实的复制内存,而只是取了开始和结尾的下标
- *	这样使用虽然更快,但是使用场景要非常小心,因为他依赖于基础数据对象
+/**
+ * Tick数据切片类
+ * 从连续的Tick缓存中创建的数据切片，支持多数据块拼接
+ * 主要特点：
+ * - 不复制内存，只记录数据块的引用和大小
+ * - 支持多个数据块的拼接访问
+ * - 支持负索引访问，便于历史数据分析
+ * - 使用场景需小心，因为依赖于基础数据对象的生命周期
+ * - 继承自WTSObject，支持引用计数管理
  */
 class WTSTickSlice : public WTSObject
 {
 private:
-	char			_code[MAX_INSTRUMENT_LENGTH];
-	typedef std::pair<WTSTickStruct*, uint32_t> TickBlock;
-	std::vector<TickBlock> _blocks;
-	uint32_t		_count;
+	char			_code[MAX_INSTRUMENT_LENGTH];  // 合约代码
+	typedef std::pair<WTSTickStruct*, uint32_t> TickBlock;  // 数据块类型：指针+大小
+	std::vector<TickBlock> _blocks;  // 数据块列表
+	uint32_t		_count;             // 总数据条数
 
 protected:
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 */
 	WTSTickSlice() { _blocks.clear(); }
+	
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		if (idx < 0)
+		if (idx < 0)  // 如果是负数索引
 		{
-			return max(0, (int32_t)_count + idx);
+			return max(0, (int32_t)_count + idx);  // 从数据末尾开始计算索引
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 public:
+	/**
+	 * 静态工厂方法：创建Tick数据切片对象
+	 * @param code 合约代码
+	 * @param ticks Tick数据指针，可以为NULL
+	 * @param count 数据条数，默认为0
+	 * @return 新创建的Tick数据切片对象指针
+	 */
 	static inline WTSTickSlice* create(const char* code, WTSTickStruct* ticks = NULL, uint32_t count = 0)
 	{
-		//if (ticks == NULL || count == 0)
-		//	return NULL;
-
 		WTSTickSlice* slice = new WTSTickSlice();
-		wt_strcpy(slice->_code, code);
-		if(ticks != NULL)
+		wt_strcpy(slice->_code, code);  // 复制合约代码
+		if(ticks != NULL)  // 如果提供了初始数据
 		{
-			slice->_blocks.emplace_back(TickBlock(ticks, count));
-			slice->_count = count;
+			slice->_blocks.emplace_back(TickBlock(ticks, count));  // 添加数据块
+			slice->_count = count;  // 设置总数据条数
 		}
 
 		return slice;
 	}
 
+	/**
+	 * 追加数据块到切片末尾
+	 * @param ticks Tick数据指针
+	 * @param count 数据条数
+	 * @return 成功返回true，失败返回false
+	 */
 	inline bool appendBlock(WTSTickStruct* ticks, uint32_t count)
 	{
-		if (ticks == NULL || count == 0)
+		if (ticks == NULL || count == 0)  // 检查参数有效性
 			return false;
 
-		_count += count;
-		_blocks.emplace_back(TickBlock(ticks, count));
+		_count += count;  // 更新总数据条数
+		_blocks.emplace_back(TickBlock(ticks, count));  // 添加新的数据块
 		return true;
 	}
 
+	/**
+	 * 在指定位置插入数据块
+	 * @param idx 插入位置的索引
+	 * @param ticks Tick数据指针
+	 * @param count 数据条数
+	 * @return 成功返回true，失败返回false
+	 */
 	inline bool insertBlock(std::size_t idx, WTSTickStruct* ticks, uint32_t count)
 	{
-		if (ticks == NULL || count == 0)
+		if (ticks == NULL || count == 0)  // 检查参数有效性
 			return false;
 
-		_count += count;
-		_blocks.insert(_blocks.begin()+idx, TickBlock(ticks, count));
+		_count += count;  // 更新总数据条数
+		_blocks.insert(_blocks.begin()+idx, TickBlock(ticks, count));  // 在指定位置插入数据块
 		return true;
 	}
 
+	/**
+	 * 获取数据块的数量
+	 * @return 数据块总数
+	 */
 	inline std::size_t	get_block_counts() const
 	{
-		return _blocks.size();
+		return _blocks.size();  // 返回数据块向量的大小
 	}
 
+	/**
+	 * 获取指定数据块的地址
+	 * @param blkIdx 数据块索引
+	 * @return 数据块的起始地址，索引无效时返回NULL
+	 */
 	inline WTSTickStruct*	get_block_addr(std::size_t blkIdx)
 	{
-		if (blkIdx >= _blocks.size())
+		if (blkIdx >= _blocks.size())  // 检查索引范围
 			return NULL;
 
-		return _blocks[blkIdx].first;
+		return _blocks[blkIdx].first;  // 返回数据块的起始指针
 	}
 
+	/**
+	 * 获取指定数据块的大小
+	 * @param blkIdx 数据块索引
+	 * @return 数据块中的数据条数，索引无效时返回INVALID_UINT32
+	 */
 	inline uint32_t get_block_size(std::size_t blkIdx)
 	{
-		if (blkIdx >= _blocks.size())
+		if (blkIdx >= _blocks.size())  // 检查索引范围
 			return INVALID_UINT32;
 
-		return _blocks[blkIdx].second;
+		return _blocks[blkIdx].second;  // 返回数据块的大小
 	}
 
+	/**
+	 * 获取切片中的总数据条数
+	 * @return 总数据条数
+	 */
 	inline uint32_t size() const{ return _count; }
 
+	/**
+	 * 检查切片是否为空
+	 * @return 如果没有数据返回true，否则返回false
+	 */
 	inline bool empty() const{ return (_count == 0); }
 
+	/**
+	 * 获取指定位置的Tick数据（只读访问）
+	 * 支持跨数据块的索引访问，自动处理数据块边界
+	 * @param idx 数据索引，支持负数索引
+	 * @return 指定位置的Tick数据指针（只读），无效时返回NULL
+	 */
 	inline const WTSTickStruct* at(int32_t idx)
 	{
-		if (_count == 0)
+		if (_count == 0)  // 检查是否有数据
 			return NULL;
 
-		idx = translateIdx(idx);
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
 		do 
 		{
-			for(auto& item : _blocks)
+			for(auto& item : _blocks)  // 遍历所有数据块
 			{
-				if ((uint32_t)idx >= item.second)
-					idx -= item.second;
+				if ((uint32_t)idx >= item.second)  // 如果索引超出当前块
+					idx -= item.second;  // 减去当前块的大小，继续查找
 				else
-					return item.first + idx;
+					return item.first + idx;  // 在当前块中找到，返回对应位置
 			}
 		} while (false);
-		return NULL;
+		return NULL;  // 未找到有效数据
 	}
 };
 
-//////////////////////////////////////////////////////////////////////////
-/*
- *	@brief 逐笔委托数据切片,从连续的逐笔委托缓存中做的切片
- *	@details 切片并没有真实的复制内存,而只是取了开始和结尾的下标
- *	这样使用虽然更快,但是使用场景要非常小心,因为他依赖于基础数据对象
+/**
+ * 逐笔委托数据切片类
+ * 从连续的逐笔委托缓存中创建的数据切片
+ * 主要特点：
+ * - 不复制内存，只记录数据的起始位置和数量
+ * - 支持负索引访问，便于历史数据分析
+ * - 使用场景需小心，因为依赖于基础数据对象的生命周期
+ * - 适用于连续内存存储的逐笔委托数据
+ * - 继承自WTSObject，支持引用计数管理
  */
 class WTSOrdDtlSlice : public WTSObject
 {
 private:
-	char				m_strCode[MAX_INSTRUMENT_LENGTH];
-	WTSOrdDtlStruct*	m_ptrBegin;
-	uint32_t			m_uCount;
+	char				m_strCode[MAX_INSTRUMENT_LENGTH];  // 合约代码
+	WTSOrdDtlStruct*	m_ptrBegin;                        // 数据起始指针
+	uint32_t			m_uCount;                          // 数据条数
 
 protected:
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 */
 	WTSOrdDtlSlice() :m_ptrBegin(NULL), m_uCount(0) {}
+	
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		if (idx < 0)
+		if (idx < 0)  // 如果是负数索引
 		{
-			return max(0, (int32_t)m_uCount + idx);
+			return max(0, (int32_t)m_uCount + idx);  // 从数据末尾开始计算索引
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 public:
+	/**
+	 * 静态工厂方法：创建逐笔委托数据切片对象
+	 * @param code 合约代码
+	 * @param firstItem 数据起始位置指针
+	 * @param count 数据条数
+	 * @return 新创建的逐笔委托数据切片对象指针，参数无效时返回NULL
+	 */
 	static inline WTSOrdDtlSlice* create(const char* code, WTSOrdDtlStruct* firstItem, uint32_t count)
 	{
-		if (count == 0 || firstItem == NULL)
+		if (count == 0 || firstItem == NULL)  // 检查参数有效性
 			return NULL;
 
 		WTSOrdDtlSlice* slice = new WTSOrdDtlSlice();
-		wt_strcpy(slice->m_strCode, code);
-		slice->m_ptrBegin = firstItem;
-		slice->m_uCount = count;
+		wt_strcpy(slice->m_strCode, code);  // 复制合约代码
+		slice->m_ptrBegin = firstItem;      // 设置数据起始指针
+		slice->m_uCount = count;            // 设置数据条数
 
 		return slice;
 	}
 
+	/**
+	 * 获取切片中的数据条数
+	 * @return 数据条数
+	 */
 	inline uint32_t size() const { return m_uCount; }
 
+	/**
+	 * 检查切片是否为空
+	 * @return 如果没有数据或指针为空返回true，否则返回false
+	 */
 	inline bool empty() const { return (m_uCount == 0) || (m_ptrBegin == NULL); }
 
+	/**
+	 * 获取指定位置的逐笔委托数据（只读访问）
+	 * @param idx 数据索引，支持负数索引
+	 * @return 指定位置的逐笔委托数据指针（只读），无效时返回NULL
+	 */
 	inline const WTSOrdDtlStruct* at(int32_t idx)
 	{
-		if (m_ptrBegin == NULL)
+		if (m_ptrBegin == NULL)  // 检查指针有效性
 			return NULL;
-		idx = translateIdx(idx);
-		return m_ptrBegin + idx;
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
+		return m_ptrBegin + idx;  // 返回指定位置的数据指针
 	}
 };
 
-//////////////////////////////////////////////////////////////////////////
-/*
- *	@brief 委托队列数据切片,从连续的委托队列缓存中做的切片
- *	@details 切片并没有真实的复制内存,而只是取了开始和结尾的下标
- *	这样使用虽然更快,但是使用场景要非常小心,因为他依赖于基础数据对象
+/**
+ * 委托队列数据切片类
+ * 从连续的委托队列缓存中创建的数据切片
+ * 主要特点：
+ * - 不复制内存，只记录数据的起始位置和数量
+ * - 支持负索引访问，便于历史数据分析
+ * - 使用场景需小心，因为依赖于基础数据对象的生命周期
+ * - 适用于连续内存存储的委托队列数据
+ * - 继承自WTSObject，支持引用计数管理
  */
 class WTSOrdQueSlice : public WTSObject
 {
 private:
-	char				m_strCode[MAX_INSTRUMENT_LENGTH];
-	WTSOrdQueStruct*	m_ptrBegin;
-	uint32_t			m_uCount;
+	char				m_strCode[MAX_INSTRUMENT_LENGTH];  // 合约代码
+	WTSOrdQueStruct*	m_ptrBegin;                        // 数据起始指针
+	uint32_t			m_uCount;                          // 数据条数
 
 protected:
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 */
 	WTSOrdQueSlice() :m_ptrBegin(NULL), m_uCount(0) {}
+	
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		if (idx < 0)
+		if (idx < 0)  // 如果是负数索引
 		{
-			return max(0, (int32_t)m_uCount + idx);
+			return max(0, (int32_t)m_uCount + idx);  // 从数据末尾开始计算索引
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 public:
+	/**
+	 * 静态工厂方法：创建委托队列数据切片对象
+	 * @param code 合约代码
+	 * @param firstItem 数据起始位置指针
+	 * @param count 数据条数
+	 * @return 新创建的委托队列数据切片对象指针，参数无效时返回NULL
+	 */
 	static inline WTSOrdQueSlice* create(const char* code, WTSOrdQueStruct* firstItem, uint32_t count)
 	{
-		if (count == 0 || firstItem == NULL)
+		if (count == 0 || firstItem == NULL)  // 检查参数有效性
 			return NULL;
 
 		WTSOrdQueSlice* slice = new WTSOrdQueSlice();
-		wt_strcpy(slice->m_strCode, code);
-		slice->m_ptrBegin = firstItem;
-		slice->m_uCount = count;
+		wt_strcpy(slice->m_strCode, code);  // 复制合约代码
+		slice->m_ptrBegin = firstItem;      // 设置数据起始指针
+		slice->m_uCount = count;            // 设置数据条数
 
 		return slice;
 	}
 
+	/**
+	 * 获取切片中的数据条数
+	 * @return 数据条数
+	 */
 	inline uint32_t size() const { return m_uCount; }
 
+	/**
+	 * 检查切片是否为空
+	 * @return 如果没有数据或指针为空返回true，否则返回false
+	 */
 	inline bool empty() const { return (m_uCount == 0) || (m_ptrBegin == NULL); }
 
+	/**
+	 * 获取指定位置的委托队列数据（只读访问）
+	 * @param idx 数据索引，支持负数索引
+	 * @return 指定位置的委托队列数据指针（只读），无效时返回NULL
+	 */
 	inline const WTSOrdQueStruct* at(int32_t idx)
 	{
-		if (m_ptrBegin == NULL)
+		if (m_ptrBegin == NULL)  // 检查指针有效性
 			return NULL;
-		idx = translateIdx(idx);
-		return m_ptrBegin + idx;
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
+		return m_ptrBegin + idx;  // 返回指定位置的数据指针
 	}
 };
 
-//////////////////////////////////////////////////////////////////////////
-/*
- *	@brief 逐笔成交数据切片,从连续的逐笔成交缓存中做的切片
- *	@details 切片并没有真实的复制内存,而只是取了开始和结尾的下标
- *	这样使用虽然更快,但是使用场景要非常小心,因为他依赖于基础数据对象
+/**
+ * 逐笔成交数据切片类
+ * 从连续的逐笔成交缓存中创建的数据切片
+ * 主要特点：
+ * - 不复制内存，只记录数据的起始位置和数量
+ * - 支持负索引访问，便于历史数据分析
+ * - 使用场景需小心，因为依赖于基础数据对象的生命周期
+ * - 适用于连续内存存储的逐笔成交数据
+ * - 继承自WTSObject，支持引用计数管理
  */
 class WTSTransSlice : public WTSObject
 {
 private:
-	char			m_strCode[MAX_INSTRUMENT_LENGTH];
-	WTSTransStruct*	m_ptrBegin;
-	uint32_t		m_uCount;
+	char			m_strCode[MAX_INSTRUMENT_LENGTH];  // 合约代码
+	WTSTransStruct*	m_ptrBegin;                        // 数据起始指针
+	uint32_t		m_uCount;                          // 数据条数
 
 protected:
+	/**
+	 * 受保护的构造函数
+	 * 防止直接实例化，必须通过静态工厂方法创建
+	 */
 	WTSTransSlice() :m_ptrBegin(NULL), m_uCount(0) {}
+	
+	/**
+	 * 索引转换函数
+	 * 将负数索引转换为正数索引，支持Python风格的负数索引
+	 * @param idx 原始索引
+	 * @return 转换后的正数索引
+	 */
 	inline int32_t		translateIdx(int32_t idx) const
 	{
-		if (idx < 0)
+		if (idx < 0)  // 如果是负数索引
 		{
-			return max(0, (int32_t)m_uCount + idx);
+			return max(0, (int32_t)m_uCount + idx);  // 从数据末尾开始计算索引
 		}
 
-		return idx;
+		return idx;  // 正数索引直接返回
 	}
 
 public:
+	/**
+	 * 静态工厂方法：创建逐笔成交数据切片对象
+	 * @param code 合约代码
+	 * @param firstItem 数据起始位置指针
+	 * @param count 数据条数
+	 * @return 新创建的逐笔成交数据切片对象指针，参数无效时返回NULL
+	 */
 	static inline WTSTransSlice* create(const char* code, WTSTransStruct* firstItem, uint32_t count)
 	{
-		if (count == 0 || firstItem == NULL)
+		if (count == 0 || firstItem == NULL)  // 检查参数有效性
 			return NULL;
 
 		WTSTransSlice* slice = new WTSTransSlice();
-		wt_strcpy(slice->m_strCode, code);
-		slice->m_ptrBegin = firstItem;
-		slice->m_uCount = count;
+		wt_strcpy(slice->m_strCode, code);  // 复制合约代码
+		slice->m_ptrBegin = firstItem;      // 设置数据起始指针
+		slice->m_uCount = count;            // 设置数据条数
 
 		return slice;
 	}
 
+	/**
+	 * 获取切片中的数据条数
+	 * @return 数据条数
+	 */
 	inline uint32_t size() const { return m_uCount; }
 
+	/**
+	 * 检查切片是否为空
+	 * @return 如果没有数据或指针为空返回true，否则返回false
+	 */
 	inline bool empty() const { return (m_uCount == 0) || (m_ptrBegin == NULL); }
 
+	/**
+	 * 获取指定位置的逐笔成交数据（只读访问）
+	 * @param idx 数据索引，支持负数索引
+	 * @return 指定位置的逐笔成交数据指针（只读），无效时返回NULL
+	 */
 	inline const WTSTransStruct* at(int32_t idx)
 	{
-		if (m_ptrBegin == NULL)
+		if (m_ptrBegin == NULL)  // 检查指针有效性
 			return NULL;
-		idx = translateIdx(idx);
-		return m_ptrBegin + idx;
+		idx = translateIdx(idx);  // 转换索引，处理负数索引
+		return m_ptrBegin + idx;  // 返回指定位置的数据指针
 	}
 };
 
