@@ -5,70 +5,114 @@
  * \author Wesley
  * \date 2020/03/30
  * 
- * \brief 
+ * \brief WonderTrader日志系统实现
+ * 
+ * 本文件实现了WonderTrader框架的统一日志系统，提供高性能、线程安全的日志记录功能。
+ * 基于spdlog库实现，支持异步日志、多种输出格式和灵活的配置管理。
  */
-#include <stdio.h>
-#include <iostream>
-#include <sys/timeb.h>
+
+// 标准C库头文件
+#include <stdio.h>      // 标准输入输出
+#include <iostream>     // C++输入输出流
+#include <sys/timeb.h>  // 时间相关函数
+
+// 平台相关的时间头文件
 #ifdef _MSC_VER
-#include <time.h>
+#include <time.h>       // Windows平台时间函数
 #else
-#include <sys/time.h>
+#include <sys/time.h>   // Unix/Linux平台时间函数
 #endif
 
-#include "WTSLogger.h"
-#include "../WTSUtils/WTSCfgLoader.h"
-#include "../Includes/ILogHandler.h"
-#include "../Includes/WTSVariant.hpp"
-#include "../Share/StdUtils.hpp"
-#include "../Share/StrUtil.hpp"
-#include "../Share/TimeUtils.hpp"
+// WonderTrader框架头文件
+#include "WTSLogger.h"                    // 日志器头文件
+#include "../WTSUtils/WTSCfgLoader.h"     // 配置加载器
+#include "../Includes/ILogHandler.h"      // 日志处理接口
+#include "../Includes/WTSVariant.hpp"     // 变体数据类型
+#include "../Share/StdUtils.hpp"          // 标准工具函数
+#include "../Share/StrUtil.hpp"           // 字符串工具函数
+#include "../Share/TimeUtils.hpp"         // 时间工具函数
 
-#include <boost/filesystem.hpp>
+// 第三方库头文件
+#include <boost/filesystem.hpp>          // Boost文件系统库
 
-#include <spdlog/sinks/daily_file_sink.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/ostream_sink.h>
-#include <spdlog/async.h>
+// spdlog相关头文件
+#include <spdlog/sinks/daily_file_sink.h>    // 按日滚动文件输出
+#include <spdlog/sinks/basic_file_sink.h>    // 基础文件输出
+#include <spdlog/sinks/stdout_color_sinks.h> // 彩色控制台输出
+#include <spdlog/sinks/ostream_sink.h>       // 流输出
+#include <spdlog/async.h>                    // 异步日志支持
 
+// 动态日志模式的配置键名
 const char* DYN_PATTERN = "dyn_pattern";
 
+/**
+ * @name WTSLogger静态成员变量定义
+ * @brief 日志系统的全局状态和配置变量
+ * @{
+ */
+
+/// 自定义日志处理器指针
 ILogHandler*		WTSLogger::m_logHandler	= NULL;
+
+/// 全局日志级别过滤器
 WTSLogLevel			WTSLogger::m_logLevel	= LL_NONE;
+
+/// 日志系统停止标志
 bool				WTSLogger::m_bStopped = false;
+
+/// 日志系统初始化标志
 bool				WTSLogger::m_bInited = false;
+
+/// 异步日志线程池初始化标志
 bool				WTSLogger::m_bTpInited = false;
+
+/// 根日志器（默认日志器）
 SpdLoggerPtr		WTSLogger::m_rootLogger = NULL;
+
+/// 动态日志模式配置映射表
 WTSLogger::LogPatterns*	WTSLogger::m_mapPatterns = NULL;
+
+/// 线程本地日志缓冲区
 thread_local char	WTSLogger::m_buffer[];
+
+/// 动态创建的日志器名称集合
 std::set<std::string>	WTSLogger::m_setDynLoggers;
 
+/** @} */
+
+/**
+ * @brief 将字符串转换为spdlog日志级别枚举
+ * @param slvl 日志级别字符串
+ * @return spdlog::level::level_enum 对应的spdlog日志级别
+ * 
+ * 将配置文件中的日志级别字符串转换为spdlog库使用的日志级别枚举值。
+ * 支持的级别包括：debug、info、warn、error、fatal。
+ */
 inline spdlog::level::level_enum str_to_level( const char* slvl)
 {
 	if(wt_stricmp(slvl, "debug") == 0)
 	{
-		return spdlog::level::debug;
+		return spdlog::level::debug;    // 调试级别
 	}
 	else if (wt_stricmp(slvl, "info") == 0)
 	{
-		return spdlog::level::info;
+		return spdlog::level::info;     // 信息级别
 	}
 	else if (wt_stricmp(slvl, "warn") == 0)
 	{
-		return spdlog::level::warn;
+		return spdlog::level::warn;     // 警告级别
 	}
 	else if (wt_stricmp(slvl, "error") == 0)
 	{
-		return spdlog::level::err;
+		return spdlog::level::err;      // 错误级别
 	}
 	else if (wt_stricmp(slvl, "fatal") == 0)
 	{
-		return spdlog::level::critical;
+		return spdlog::level::critical; // 致命错误级别
 	}
 	else
 	{
-		return spdlog::level::off;
+		return spdlog::level::off;      // 关闭日志
 	}
 }
 
@@ -200,22 +244,45 @@ void WTSLogger::initLogger(const char* catName, WTSVariant* cfgLogger)
 	}
 }
 
+/**
+ * @brief 初始化日志系统
+ * @param propFile 配置文件路径或配置内容
+ * @param isFile 是否为文件路径
+ * @param handler 自定义日志处理器
+ * 
+ * 根据配置文件或配置内容初始化整个日志系统。这是日志系统的入口函数，
+ * 负责解析配置、创建各种日志器、设置输出目标等。
+ * 
+ * 配置解析流程：
+ * 1. 检查初始化状态，避免重复初始化
+ * 2. 加载配置文件或解析配置内容
+ * 3. 遍历配置项，创建对应的日志器
+ * 4. 处理动态日志模式配置
+ * 5. 设置根日志器和全局配置
+ * 6. 启动定时刷新机制
+ */
 void WTSLogger::init(const char* propFile /* = "logcfg.json" */, bool isFile /* = true */, ILogHandler* handler /* = NULL */)
 {
+	// 防止重复初始化
 	if (m_bInited)
 		return;
 
+	// 如果是文件路径，检查文件是否存在
 	if (isFile && !StdFile::exists(propFile))
 		return;
 
+	// 加载配置：从文件或直接从内容加载
 	WTSVariant* cfg = isFile ? WTSCfgLoader::load_from_file(propFile) : WTSCfgLoader::load_from_content(propFile, false);
 	if (cfg == NULL)
 		return;
 
+	// 遍历配置中的所有日志器定义
 	auto keys = cfg->memberNames();
 	for (std::string& key : keys)
 	{
 		WTSVariant* cfgItem = cfg->get(key.c_str());
+		
+		// 处理动态日志模式配置
 		if (key == DYN_PATTERN)
 		{
 			auto pkeys = cfgItem->memberNames();
@@ -225,24 +292,31 @@ void WTSLogger::init(const char* propFile /* = "logcfg.json" */, bool isFile /* 
 				if (m_mapPatterns == NULL)
 					m_mapPatterns = LogPatterns::create();
 
+				// 保存动态模式配置，用于运行时创建日志器
 				m_mapPatterns->add(pkey.c_str(), cfgPattern, true);
 			}
 			continue;
 		}
 
+		// 初始化普通日志器
 		initLogger(key.c_str(), cfgItem);
 	}
 
+	// 获取根日志器，这是必须的
 	m_rootLogger = getLogger("root");
 	if(m_rootLogger == NULL)
 	{
 		throw std::runtime_error("root logger can not be null, please check the config file");
 	}
+	
+	// 设置spdlog的默认日志器和自动刷新
 	spdlog::set_default_logger(m_rootLogger);
-	spdlog::flush_every(std::chrono::seconds(2));
+	spdlog::flush_every(std::chrono::seconds(2));  // 每2秒自动刷新缓冲区
 
+	// 设置自定义日志处理器
 	m_logHandler = handler;
 
+	// 标记初始化完成
 	m_bInited = true;
 }
 
