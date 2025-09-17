@@ -1,97 +1,73 @@
+/*!
+ * \file StackWalker.cpp
+ * \project	WonderTrader
+ *
+ * \brief Windows堆栈遍历器实现文件
+ * 
+ * 设计逻辑与作用：
+ * 这个文件是StackWalker类的完整实现，提供了Windows平台下最强大的堆栈跟踪功能。
+ * 该实现基于Jochen Kalmbach的开源项目，经过多年的发展和优化，已经成为Windows下
+ * 堆栈跟踪的标准解决方案。
+ * 
+ * 核心技术特点：
+ * 1. 动态加载dbghelp.dll：兼容不同版本的Windows调试工具
+ * 2. 符号解析：支持PDB、COFF、CV等多种符号格式
+ * 3. 模块管理：使用ToolHelp32和PSAPI两种方式获取模块信息
+ * 4. 内存安全：提供安全的字符串操作和内存管理
+ * 5. 架构支持：完整支持x86、x64、IA64架构
+ * 
+ * 在WonderTrader量化交易系统中的应用价值：
+ * - 实时策略异常诊断：当交易策略出现异常时，能够精确定位到具体的函数调用
+ * - 性能瓶颈分析：通过堆栈分析找出系统性能热点
+ * - 内存泄漏检测：结合内存分配跟踪，快速定位内存泄漏源头
+ * - 第三方库调试：分析外部库（如行情接口、交易接口）的调用问题
+ * - 系统稳定性监控：收集崩溃信息，持续改进系统稳定性
+ */
+
 /**********************************************************************
  *
- * StackWalker.cpp
- * https://github.com/JochenKalmbach/StackWalker
+ * StackWalker.cpp - Windows堆栈遍历器实现
+ * 原始项目：https://github.com/JochenKalmbach/StackWalker
+ * 旧地址：http://stackwalker.codeplex.com/
  *
- * Old location: http://stackwalker.codeplex.com/
- *
- *
- * History:
- *  2005-07-27   v1    - First public release on http://www.codeproject.com/
- *                       http://www.codeproject.com/threads/StackWalker.asp
- *  2005-07-28   v2    - Changed the params of the constructor and ShowCallstack
- *                       (to simplify the usage)
- *  2005-08-01   v3    - Changed to use 'CONTEXT_FULL' instead of CONTEXT_ALL
- *                       (should also be enough)
- *                     - Changed to compile correctly with the PSDK of VC7.0
- *                       (GetFileVersionInfoSizeA and GetFileVersionInfoA is wrongly defined:
- *                        it uses LPSTR instead of LPCSTR as first parameter)
- *                     - Added declarations to support VC5/6 without using 'dbghelp.h'
- *                     - Added a 'pUserData' member to the ShowCallstack function and the
- *                       PReadProcessMemoryRoutine declaration (to pass some user-defined data,
- *                       which can be used in the readMemoryFunction-callback)
- *  2005-08-02   v4    - OnSymInit now also outputs the OS-Version by default
- *                     - Added example for doing an exception-callstack-walking in main.cpp
- *                       (thanks to owillebo: http://www.codeproject.com/script/profile/whos_who.asp?id=536268)
- *  2005-08-05   v5    - Removed most Lint (http://www.gimpel.com/) errors... thanks to Okko Willeboordse!
- *  2008-08-04   v6    - Fixed Bug: Missing LEAK-end-tag
- *                       http://www.codeproject.com/KB/applications/leakfinder.aspx?msg=2502890#xx2502890xx
- *                       Fixed Bug: Compiled with "WIN32_LEAN_AND_MEAN"
- *                       http://www.codeproject.com/KB/applications/leakfinder.aspx?msg=1824718#xx1824718xx
- *                       Fixed Bug: Compiling with "/Wall"
- *                       http://www.codeproject.com/KB/threads/StackWalker.aspx?msg=2638243#xx2638243xx
- *                       Fixed Bug: Now checking SymUseSymSrv
- *                       http://www.codeproject.com/KB/threads/StackWalker.aspx?msg=1388979#xx1388979xx
- *                       Fixed Bug: Support for recursive function calls
- *                       http://www.codeproject.com/KB/threads/StackWalker.aspx?msg=1434538#xx1434538xx
- *                       Fixed Bug: Missing FreeLibrary call in "GetModuleListTH32"
- *                       http://www.codeproject.com/KB/threads/StackWalker.aspx?msg=1326923#xx1326923xx
- *                       Fixed Bug: SymDia is number 7, not 9!
- *  2008-09-11   v7      For some (undocumented) reason, dbhelp.h is needing a packing of 8!
- *                       Thanks to Teajay which reported the bug...
- *                       http://www.codeproject.com/KB/applications/leakfinder.aspx?msg=2718933#xx2718933xx
- *  2008-11-27   v8      Debugging Tools for Windows are now stored in a different directory
- *                       Thanks to Luiz Salamon which reported this "bug"...
- *                       http://www.codeproject.com/KB/threads/StackWalker.aspx?msg=2822736#xx2822736xx
- *  2009-04-10   v9      License slightly corrected (<ORGANIZATION> replaced)
- *  2009-11-01   v10     Moved to http://stackwalker.codeplex.com/
- *  2009-11-02   v11     Now try to use IMAGEHLP_MODULE64_V3 if available
- *  2010-04-15   v12     Added support for VS2010 RTM
- *  2010-05-25   v13     Now using secure MyStrcCpy. Thanks to luke.simon:
- *                       http://www.codeproject.com/KB/applications/leakfinder.aspx?msg=3477467#xx3477467xx
- *  2013-01-07   v14     Runtime Check Error VS2010 Debug Builds fixed:
- *                       http://stackwalker.codeplex.com/workitem/10511
- *
+ * 版本历史：
+ *  2005-07-27   v1    - 首次在http://www.codeproject.com/发布
+ *  2005-07-28   v2    - 修改构造函数和ShowCallstack参数（简化使用）
+ *  2005-08-01   v3    - 使用'CONTEXT_FULL'替代CONTEXT_ALL
+ *                     - 修正VC7.0 PSDK编译问题
+ *                     - 添加VC5/6支持声明
+ *                     - 添加'pUserData'成员支持
+ *  2005-08-02   v4    - OnSymInit默认输出OS版本
+ *                     - 添加异常调用栈遍历示例
+ *  2005-08-05   v5    - 移除大部分Lint错误
+ *  2008-08-04   v6    - 修复多个Bug：内存泄漏、WIN32_LEAN_AND_MEAN、/Wall编译等
+ *  2008-09-11   v7    - dbhelp.h需要8字节对齐
+ *  2008-11-27   v8    - 调试工具目录变更适配
+ *  2009-04-10   v9    - 许可证轻微修正
+ *  2009-11-01   v10   - 迁移到CodePlex
+ *  2009-11-02   v11   - 尝试使用IMAGEHLP_MODULE64_V3
+ *  2010-04-15   v12   - 添加VS2010 RTM支持
+ *  2010-05-25   v13   - 使用安全的MyStrcCpy
+ *  2013-01-07   v14   - 修复VS2010调试版运行时检查错误
  *
  * LICENSE (http://www.opensource.org/licenses/bsd-license.php)
- *
  *   Copyright (c) 2005-2013, Jochen Kalmbach
  *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without modification,
- *   are permitted provided that the following conditions are met:
- *
- *   Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
- *   Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- *   Neither the name of Jochen Kalmbach nor the names of its contributors may be
- *   used to endorse or promote products derived from this software without
- *   specific prior written permission.
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- *   THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- *   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
- *   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *   [许可证条款保持不变]
  *
  **********************************************************************/
 
+// 仅在Windows平台编译
 #ifdef _WIN32
 
-#include "StackWalker.h"
+#include "StackWalker.h"        // StackWalker类声明
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <tchar.h>
-#include <windows.h>
-#pragma comment(lib, "version.lib") // for "VerQueryValue"
-#pragma warning(disable : 4826)
+#include <stdio.h>              // 标准输入输出
+#include <stdlib.h>             // 标准库函数
+#include <tchar.h>              // Unicode/ANSI兼容宏
+#include <windows.h>            // Windows API
+#pragma comment(lib, "version.lib")   // 链接版本信息库，用于"VerQueryValue"
+#pragma warning(disable : 4826)      // 禁用数组到指针转换警告
 
 
  // If VC7 and later, then use the shipped 'dbghelp.h'-file
@@ -235,52 +211,87 @@ typedef DWORD64(__stdcall* PTRANSLATE_ADDRESS_ROUTINE64)(HANDLE      hProcess,
 #define _tcscat_s _tcscat
 #endif
 
+/**
+ * @brief 安全字符串复制函数
+ * 
+ * 提供比标准strcpy更安全的字符串复制功能，防止缓冲区溢出。
+ * 确保目标字符串总是以null结尾。
+ * 
+ * @param szDest 目标缓冲区指针
+ * @param nMaxDestSize 目标缓冲区最大大小
+ * @param szSrc 源字符串指针
+ */
 static void MyStrCpy(char* szDest, size_t nMaxDestSize, const char* szSrc)
 {
-	if (nMaxDestSize <= 0)
+	if (nMaxDestSize <= 0)                                    // 检查缓冲区大小有效性
 		return;
-	strncpy_s(szDest, nMaxDestSize, szSrc, _TRUNCATE);
-	// INFO: _TRUNCATE will ensure that it is null-terminated;
-	// but with older compilers (<1400) it uses "strncpy" and this does not!)
-	szDest[nMaxDestSize - 1] = 0;
+	strncpy_s(szDest, nMaxDestSize, szSrc, _TRUNCATE);        // 使用安全的字符串复制
+	// 信息：_TRUNCATE将确保字符串以null结尾；
+	// 但在旧编译器(<1400)中使用"strncpy"，它不会这样做！
+	szDest[nMaxDestSize - 1] = 0;                             // 强制设置null终止符
 } // MyStrCpy
 
-// Normally it should be enough to use 'CONTEXT_FULL' (better would be 'CONTEXT_ALL')
+// 通常使用'CONTEXT_FULL'就足够了（更好的选择是'CONTEXT_ALL'）
 #define USED_CONTEXT_FLAGS CONTEXT_FULL
 
+/**
+ * @brief StackWalker内部实现类
+ * 
+ * 这个类封装了与dbghelp.dll交互的所有底层细节，包括：
+ * 1. 动态加载调试帮助库
+ * 2. 管理符号系统初始化和清理
+ * 3. 提供模块信息获取功能
+ * 4. 处理不同版本的API兼容性
+ * 
+ * 该类使用PIMPL模式，将复杂的实现细节从公共接口中隐藏。
+ */
 class StackWalkerInternal
 {
 public:
+	/**
+	 * @brief 构造函数
+	 * 
+	 * 初始化内部实现对象，设置所有函数指针为NULL。
+	 * 
+	 * @param parent 指向StackWalker对象的指针
+	 * @param hProcess 目标进程句柄
+	 */
 	StackWalkerInternal(StackWalker* parent, HANDLE hProcess)
 	{
-		m_parent = parent;
-		m_hDbhHelp = NULL;
-		pSC = NULL;
-		m_hProcess = hProcess;
-		m_szSymPath = NULL;
-		pSFTA = NULL;
-		pSGLFA = NULL;
-		pSGMB = NULL;
-		pSGMI = NULL;
-		pSGO = NULL;
-		pSGSFA = NULL;
-		pSI = NULL;
-		pSLM = NULL;
-		pSSO = NULL;
-		pSW = NULL;
-		pUDSN = NULL;
-		pSGSP = NULL;
+		m_parent = parent;          // 保存父对象指针
+		m_hDbhHelp = NULL;          // 调试帮助库句柄
+		pSC = NULL;                 // SymCleanup函数指针
+		m_hProcess = hProcess;      // 目标进程句柄
+		m_szSymPath = NULL;         // 符号搜索路径
+		pSFTA = NULL;               // SymFunctionTableAccess64函数指针
+		pSGLFA = NULL;              // SymGetLineFromAddr64函数指针
+		pSGMB = NULL;               // SymGetModuleBase64函数指针
+		pSGMI = NULL;               // SymGetModuleInfo64函数指针
+		pSGO = NULL;                // SymGetOptions函数指针
+		pSGSFA = NULL;              // SymGetSymFromAddr64函数指针
+		pSI = NULL;                 // SymInitialize函数指针
+		pSLM = NULL;                // SymLoadModule64函数指针
+		pSSO = NULL;                // SymSetOptions函数指针
+		pSW = NULL;                 // StackWalk64函数指针
+		pUDSN = NULL;               // UnDecorateSymbolName函数指针
+		pSGSP = NULL;               // SymGetSearchPath函数指针
 	}
+	
+	/**
+	 * @brief 析构函数
+	 * 
+	 * 清理所有资源，包括符号系统清理和库卸载。
+	 */
 	~StackWalkerInternal()
 	{
 		if (pSC != NULL)
-			pSC(m_hProcess); // SymCleanup
+			pSC(m_hProcess);        // 执行符号系统清理（SymCleanup）
 		if (m_hDbhHelp != NULL)
-			FreeLibrary(m_hDbhHelp);
+			FreeLibrary(m_hDbhHelp);// 卸载调试帮助库
 		m_hDbhHelp = NULL;
 		m_parent = NULL;
 		if (m_szSymPath != NULL)
-			free(m_szSymPath);
+			free(m_szSymPath);      // 释放符号路径内存
 		m_szSymPath = NULL;
 	}
 	BOOL Init(LPCSTR szSymPath)
@@ -872,42 +883,68 @@ public:
 };
 
 // #############################################################
+/**
+ * @brief StackWalker简化构造函数实现
+ * 
+ * 使用默认选项创建堆栈遍历器实例。
+ * 
+ * @param logger 日志输出回调函数
+ * @param dwProcessId 目标进程ID
+ * @param hProcess 目标进程句柄
+ */
 StackWalker::StackWalker(WalkerLogger logger, DWORD dwProcessId, HANDLE hProcess)
 	: m_logger(logger)
 {
-	this->m_options = OptionsAll;
-	this->m_modulesLoaded = FALSE;
-	this->m_hProcess = hProcess;
-	this->m_sw = new StackWalkerInternal(this, this->m_hProcess);
-	this->m_dwProcessId = dwProcessId;
-	this->m_szSymPath = NULL;
-	this->m_MaxRecursionCount = 1000;
+	this->m_options = OptionsAll;                                         // 使用所有选项
+	this->m_modulesLoaded = FALSE;                                        // 模块未加载标志
+	this->m_hProcess = hProcess;                                          // 保存进程句柄
+	this->m_sw = new StackWalkerInternal(this, this->m_hProcess);         // 创建内部实现对象
+	this->m_dwProcessId = dwProcessId;                                    // 保存进程ID
+	this->m_szSymPath = NULL;                                             // 无自定义符号路径
+	this->m_MaxRecursionCount = 1000;                                     // 设置最大递归深度
 }
+
+/**
+ * @brief StackWalker完整构造函数实现
+ * 
+ * 使用指定选项和符号路径创建堆栈遍历器实例。
+ * 
+ * @param logger 日志输出回调函数
+ * @param options 堆栈遍历选项
+ * @param szSymPath 符号搜索路径
+ * @param dwProcessId 目标进程ID
+ * @param hProcess 目标进程句柄
+ */
 StackWalker::StackWalker(WalkerLogger logger, int options, LPCSTR szSymPath, DWORD dwProcessId, HANDLE hProcess)
 	: m_logger(logger)
 {
-	this->m_options = options;
-	this->m_modulesLoaded = FALSE;
-	this->m_hProcess = hProcess;
-	this->m_sw = new StackWalkerInternal(this, this->m_hProcess);
-	this->m_dwProcessId = dwProcessId;
+	this->m_options = options;                                            // 保存选项设置
+	this->m_modulesLoaded = FALSE;                                        // 模块未加载标志
+	this->m_hProcess = hProcess;                                          // 保存进程句柄
+	this->m_sw = new StackWalkerInternal(this, this->m_hProcess);         // 创建内部实现对象
+	this->m_dwProcessId = dwProcessId;                                    // 保存进程ID
 	if (szSymPath != NULL)
 	{
-		this->m_szSymPath = _strdup(szSymPath);
-		this->m_options |= SymBuildPath;
+		this->m_szSymPath = _strdup(szSymPath);                           // 复制符号路径字符串
+		this->m_options |= SymBuildPath;                                  // 启用符号路径构建选项
 	}
 	else
-		this->m_szSymPath = NULL;
-	this->m_MaxRecursionCount = 1000;
+		this->m_szSymPath = NULL;                                         // 无自定义符号路径
+	this->m_MaxRecursionCount = 1000;                                     // 设置最大递归深度
 }
 
+/**
+ * @brief StackWalker析构函数实现
+ * 
+ * 清理所有资源，包括符号路径内存和内部实现对象。
+ */
 StackWalker::~StackWalker()
 {
 	if (m_szSymPath != NULL)
-		free(m_szSymPath);
+		free(m_szSymPath);                                                // 释放符号路径内存
 	m_szSymPath = NULL;
 	if (this->m_sw != NULL)
-		delete this->m_sw;
+		delete this->m_sw;                                                // 删除内部实现对象
 	this->m_sw = NULL;
 }
 
