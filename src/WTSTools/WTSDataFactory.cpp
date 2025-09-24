@@ -1108,28 +1108,27 @@ WTSBarStruct* WTSDataFactory::updateSecData(WTSSessionInfo* sInfo, WTSKlineData*
  */
 uint32_t WTSDataFactory::getPrevMinute(uint32_t curMinute, int period /* = 1 */)
 {
-	// 分解时间：提取小时和分钟部分
-	uint32_t h = curMinute/100;  // 小时部分
-	uint32_t m = curMinute%100;  // 分钟部分
-	
-	// **处理分钟借位情况**
-	if(m == 0)
-	{
-		// 当前分钟为0，需要向前一小时借位
-		m = 60;  // 设置为60分钟，后续计算时会减去period
-		
-		// **处理小时借位情况**
-		if(h == 0) 
-			h = 24;  // 如果小时为0，回到24小时制的前一天
+    // 1. 将 HHMM 格式转换为从午夜0点开始的总分钟数
+    int32_t totalMinutes = (curMinute / 100) * 60 + (curMinute % 100);
 
-		// 计算最终时间：前一小时的(60-period)分钟
-		return (h-1)*100 + (m-period);
-	}
-	else
-	{
-		// 当前分钟不为0，直接减去period分钟
-		return h*100 + m - period;
-	}
+    // 2. 执行分钟数的减法
+    totalMinutes -= period;
+
+    // 3. 处理跨天的情况（结果为负数）
+    // C++的取模运算对负数结果依赖于具体实现，所以用循环更安全
+    while (totalMinutes < 0)
+    {
+        totalMinutes += 1440; // 1440 = 24 * 60，加上一天的分钟数
+    }
+
+    // 确保结果在一天之内
+    totalMinutes %= 1440;
+
+    // 4. 将总分钟数转换回 HHMM 格式
+    uint32_t newHour = totalMinutes / 60;
+    uint32_t newMinute = totalMinutes % 60;
+
+    return newHour * 100 + newMinute;
 }
 
 /**
@@ -1245,109 +1244,112 @@ WTSKlineData* WTSDataFactory::extractMin1Data(WTSKlineSlice* baseKline, uint32_t
 	ret->setPeriod(KP_Minute1, times);  // 设置为1分钟基础的times倍周期
 
 	// **遍历所有基础K线数据进行聚合**
-	for (auto i = 0; i < baseKline->size(); i++)
+	for (auto i = 0; i < baseKline->size(); i++)  // 遍历基础K线切片中的每一根K线
 	{
-		// 获取当前基础K线数据
+		// 获取当前基础K线数据：从基础K线切片中获取第i个K线数据
 		const WTSBarStruct& curBar = *baseKline->at(i);
 
 		// **时间信息提取和转换**
-		uint32_t uTradingDate = curBar.date;                    // 交易日期
-		uint32_t uDate = TimeUtils::minBarToDate(curBar.time); // 从K线时间戳提取日期
-		if(uDate == 19900000)  // 无效日期检查
+		uint32_t uTradingDate = curBar.date;                    // 交易日期：从基础K线数据中获取交易日期
+		uint32_t uDate = TimeUtils::minBarToDate(curBar.time); // 从K线时间戳提取日期：将时间戳转换为YYYYMMDD格式
+		if(uDate == 19900000)  // 无效日期检查：19900000表示无效日期，使用交易日期作为替代
 			uDate = uTradingDate;
-		uint32_t uTime = TimeUtils::minBarToTime(curBar.time);  // 从K线时间戳提取时间
-		uint32_t uMinute = sInfo->timeToMinutes(uTime);         // 转换为交易时段内的分钟偏移
-		uint32_t uBarMin = 0;  // 计算得出的目标K线分钟偏移
+		uint32_t uTime = TimeUtils::minBarToTime(curBar.time);  // 从K线时间戳提取时间：将时间戳转换为HHMM格式
+		uint32_t uMinute = sInfo->timeToMinutes(uTime);         // 转换为交易时段内的分钟偏移：将绝对时间转换为从开盘开始的分钟数
+		uint32_t uBarMin = 0;  // 计算得出的目标K线分钟偏移：用于确定当前基础K线属于哪个目标K线
 
 		// **核心算法：按交易时段对齐的时间计算**
 		// 这是处理复杂交易时间的关键逻辑，支持按交易时段边界对齐K线
 		if(bAlignSec)
 		{
 			// **交易时段对齐模式**
-			auto it = std::lower_bound(secMins.begin(), secMins.end(), uMinute);
-			auto secIdx = it - secMins.begin();
+			auto it = std::lower_bound(secMins.begin(), secMins.end(), uMinute);  // 使用二分查找定位当前分钟数所在的交易时段
+			auto secIdx = it - secMins.begin();  // 计算当前分钟数对应的交易时段索引
 			if(secIdx == 0)
 			{
 				// **第一个交易时段内**
-				uMinute -= 1;  // 减1处理边界情况
-				uBarMin = (uMinute / steplen)*steplen + steplen;
+				uMinute -= 1;  // 减1处理边界情况：1分钟K线的基础偏移
+				uBarMin = (uMinute / steplen)*steplen + steplen;  // 计算目标K线的分钟偏移：按步长对齐并加上一个步长
 				if (uBarMin > secMins[secIdx])
-					uBarMin = secMins[secIdx];  // 确保不超过时段边界
+					uBarMin = secMins[secIdx];  // 确保不超过时段边界：如果计算结果超过当前时段，则限制在时段边界
 			}
 			else
 			{
-				uMinute -= secMins[secIdx - 1];
-				uBarMin = secMins[secIdx - 1] + (uMinute / steplen)*steplen + steplen;
+				// **非第一个交易时段内**
+				uMinute -= secMins[secIdx - 1];  // 减去前一个时段的累计分钟数，得到在当前时段内的相对分钟数
+				uBarMin = secMins[secIdx - 1] + (uMinute / steplen)*steplen + steplen;  // 计算目标K线的绝对分钟偏移
 				if (uBarMin > secMins[secIdx])
-					uBarMin = secMins[secIdx];
+					uBarMin = secMins[secIdx];  // 确保不超过当前时段边界
 			}
 		}
 		else
 		{
-			uMinute -= 1;
-			uBarMin = (uMinute / steplen)*steplen + steplen;
+			// **普通模式：不按交易时段对齐**
+			uMinute -= 1;  // 减去1分钟基础偏移，对齐到1分钟边界
+			uBarMin = (uMinute / steplen)*steplen + steplen;  // 计算目标K线的分钟偏移：按步长对齐并加上一个步长
 		}
 
-		uint64_t uBarTime = sInfo->minuteToTime(uBarMin);
-		if (uBarTime < uTime)
-			uDate = TimeUtils::getNextDate(uDate, 1);
-		uBarTime = TimeUtils::timeToMinBar(uDate, (uint32_t)uBarTime);
+		uint64_t uBarTime = sInfo->minuteToTime(uBarMin);  // 将目标K线的分钟偏移转换为绝对时间（HHMM格式）
+		if (uBarTime < uTime)  // 如果目标K线时间早于当前基础K线时间，说明跨日了
+			uDate = TimeUtils::getNextDate(uDate, 1);  // 将日期推进到下一天
+		uBarTime = TimeUtils::timeToMinBar(uDate, (uint32_t)uBarTime);  // 将日期和时间组合成完整的时间戳
 
-		WTSBarStruct* lastBar = NULL;
-		if(ret->size() > 0)
+		WTSBarStruct* lastBar = NULL;  // 指向结果K线数据中最后一条K线的指针
+		if(ret->size() > 0)  // 如果结果K线数据不为空
 		{
-			lastBar = ret->at(ret->size()-1);
+			lastBar = ret->at(ret->size()-1);  // 获取最后一条K线数据
 		}
 
-		bool bNewBar = false;
-		if(lastBar == NULL || lastBar->time != uBarTime)
+		bool bNewBar = false;  // 标记是否需要创建新的K线
+		if(lastBar == NULL || lastBar->time != uBarTime)  // 如果没有最后一条K线或时间不匹配
 		{
 			//只要日期和时间都不符,则认为已经是一条新的bar了
-			lastBar = new WTSBarStruct();
-			bNewBar = true;
+			lastBar = new WTSBarStruct();  // 创建新的K线结构
+			bNewBar = true;  // 标记为新K线
 
-			memcpy(lastBar, &curBar, sizeof(WTSBarStruct));
-			lastBar->date = uDate;
-			lastBar->time = uBarTime;
+			memcpy(lastBar, &curBar, sizeof(WTSBarStruct));  // 复制基础K线数据到新K线
+			lastBar->date = uDate;  // 设置交易日期
+			lastBar->time = uBarTime;  // 设置目标K线时间
 		}
 		else
 		{
-			bNewBar = false;
+			// **更新现有K线数据**
+			bNewBar = false;  // 标记为更新现有K线
 
-			lastBar->high = max(lastBar->high, curBar.high);
-			lastBar->low = min(lastBar->low, curBar.low);
-			lastBar->close = curBar.close;
-			lastBar->settle = curBar.settle;
+			lastBar->high = max(lastBar->high, curBar.high);  // 更新最高价：取当前最高价和基础K线最高价的较大值
+			lastBar->low = min(lastBar->low, curBar.low);  // 更新最低价：取当前最低价和基础K线最低价的较小值
+			lastBar->close = curBar.close;  // 更新收盘价：使用基础K线的收盘价
+			lastBar->settle = curBar.settle;  // 更新结算价：使用基础K线的结算价
 
-			lastBar->vol += curBar.vol;
-			lastBar->money += curBar.money;
-			lastBar->add += curBar.add;
-			lastBar->hold = curBar.hold;
+			lastBar->vol += curBar.vol;  // 累加成交量：将基础K线成交量加到目标K线
+			lastBar->money += curBar.money;  // 累加成交金额：将基础K线成交金额加到目标K线
+			lastBar->add += curBar.add;  // 累加持仓变化：将基础K线持仓变化加到目标K线
+			lastBar->hold = curBar.hold;  // 更新持仓量：使用基础K线的持仓量
 		}
 
-		if(bNewBar)
+		if(bNewBar)  // 如果是新K线
 		{
-			ret->appendBar(*lastBar);
-			delete lastBar;
+			ret->appendBar(*lastBar);  // 将新K线添加到结果数据中
+			delete lastBar;  // 删除临时K线对象，避免内存泄漏
 		}
 	}
 
-	//检查最后一条数据
+	//检查最后一条数据：处理未闭合的K线
 	{
-		WTSBarStruct* lastRawBar = baseKline->at(-1);
-		WTSBarStruct* lastDesBar = ret->at(-1);
+		WTSBarStruct* lastRawBar = baseKline->at(-1);  // 获取基础K线数据的最后一条
+		WTSBarStruct* lastDesBar = ret->at(-1);  // 获取目标K线数据的最后一条
 		//如果目标K线的最后一条数据的日期或者时间大于原始K线最后一条的日期或时间
 		if ( lastDesBar->date > lastRawBar->date || lastDesBar->time > lastRawBar->time)
 		{
-			if (!bIncludeOpen)
-				ret->getDataRef().resize(ret->size() - 1);
-			else
-				ret->setClosed(false);
+			if (!bIncludeOpen)  // 如果不包含未闭合的K线
+				ret->getDataRef().resize(ret->size() - 1);  // 删除最后一条未闭合的K线
+			else  // 如果包含未闭合的K线
+				ret->setClosed(false);  // 标记最后一条K线为未闭合状态
 		}
 	}
 	
 
-	return ret;
+	return ret;  // 返回生成的K线数据对象
 }
 
 /**
@@ -1401,113 +1403,115 @@ WTSKlineData* WTSDataFactory::extractMin5Data(WTSKlineSlice* baseKline, uint32_t
 	auto secMins = sInfo->getSecMinList();
 
 	// **创建结果K线数据对象**
-	WTSKlineData* ret = WTSKlineData::create(baseKline->code(), 0);
+	WTSKlineData* ret = WTSKlineData::create(baseKline->code(), 0);  // 创建新的K线数据对象，使用基础K线的合约代码
 	ret->setPeriod(KP_Minute5, times);  // 设置为5分钟基础的times倍周期
 
 	// **遍历所有基础K线数据进行聚合**
-	for (auto i = 0; i < baseKline->size(); i++)
+	for (auto i = 0; i < baseKline->size(); i++)  // 遍历基础K线切片中的每一根K线
 	{
-		// 获取当前基础K线数据
+		// 获取当前基础K线数据：从基础K线切片中获取第i个K线数据
 		const WTSBarStruct& curBar = *baseKline->at(i);
 
 		// **时间信息提取和转换**
-		uint32_t uTradingDate = curBar.date;                    // 交易日期
-		uint32_t uDate = TimeUtils::minBarToDate(curBar.time); // 从K线时间戳提取日期
-		if(uDate == 19900000)  // 无效日期检查
+		uint32_t uTradingDate = curBar.date;                    // 交易日期：从基础K线数据中获取交易日期
+		uint32_t uDate = TimeUtils::minBarToDate(curBar.time); // 从K线时间戳提取日期：将时间戳转换为YYYYMMDD格式
+		if(uDate == 19900000)  // 无效日期检查：19900000表示无效日期，使用交易日期作为替代
 			uDate = uTradingDate;
-		uint32_t uTime = TimeUtils::minBarToTime(curBar.time);  // 从K线时间戳提取时间
-		uint32_t uMinute = sInfo->timeToMinutes(uTime);         // 转换为交易时段内的分钟偏移
-		uint32_t uBarMin = 0;  // 计算得出的目标K线分钟偏移
+		uint32_t uTime = TimeUtils::minBarToTime(curBar.time);  // 从K线时间戳提取时间：将时间戳转换为HHMM格式
+		uint32_t uMinute = sInfo->timeToMinutes(uTime);         // 转换为交易时段内的分钟偏移：将绝对时间转换为从开盘开始的分钟数
+		uint32_t uBarMin = 0;  // 计算得出的目标K线分钟偏移：用于确定当前基础K线属于哪个目标K线
 
 		// **核心算法：按交易时段对齐的时间计算**
 		// 这是处理复杂交易时间的关键逻辑，支持按交易时段边界对齐K线
 		if (bAlignSec)
 		{
 			// **交易时段对齐模式**
-			auto it = std::lower_bound(secMins.begin(), secMins.end(), uMinute);
-			auto secIdx = it - secMins.begin();
+			auto it = std::lower_bound(secMins.begin(), secMins.end(), uMinute);  // 使用二分查找定位当前分钟数所在的交易时段
+			auto secIdx = it - secMins.begin();  // 计算当前分钟数对应的交易时段索引
 			if (secIdx == 0)
 			{
 				// **第一个交易时段内**
-				uMinute -= 5;  // 5分钟K线的基础偏移
-				uBarMin = (uMinute / steplen)*steplen + steplen;
+				uMinute -= 5;  // 5分钟K线的基础偏移：减去5分钟以对齐到5分钟边界
+				uBarMin = (uMinute / steplen)*steplen + steplen;  // 计算目标K线的分钟偏移：按步长对齐并加上一个步长
 				if (uBarMin > secMins[secIdx])
-					uBarMin = secMins[secIdx];  // 确保不超过时段边界
+					uBarMin = secMins[secIdx];  // 确保不超过时段边界：如果计算结果超过当前时段，则限制在时段边界
 			}
 			else
 			{
 				// **非第一个交易时段内**
-				uMinute -= secMins[secIdx - 1];
-				uBarMin = secMins[secIdx - 1] + (uMinute / steplen)*steplen + steplen;
+				uMinute -= secMins[secIdx - 1];  // 减去前一个时段的累计分钟数，得到在当前时段内的相对分钟数
+				uBarMin = secMins[secIdx - 1] + (uMinute / steplen)*steplen + steplen;  // 计算目标K线的绝对分钟偏移
 				if (uBarMin > secMins[secIdx])
-					uBarMin = secMins[secIdx];
+					uBarMin = secMins[secIdx];  // 确保不超过当前时段边界
 			}
 		}
 		else
 		{
-			uMinute -= 5;
-			uBarMin = (uMinute / steplen)*steplen + steplen;
+			// **普通模式：不按交易时段对齐**
+			uMinute -= 5;  // 减去5分钟基础偏移，对齐到5分钟边界
+			uBarMin = (uMinute / steplen)*steplen + steplen;  // 计算目标K线的分钟偏移：按步长对齐并加上一个步长
 		}
 
-		uint64_t uBarTime = sInfo->minuteToTime(uBarMin);
-		if (uBarTime < uTime)
-			uDate = TimeUtils::getNextDate(uDate, 1);
-		uBarTime = TimeUtils::timeToMinBar(uDate, (uint32_t)uBarTime);
+		uint64_t uBarTime = sInfo->minuteToTime(uBarMin);  // 将目标K线的分钟偏移转换为绝对时间（HHMM格式）
+		if (uBarTime < uTime)  // 如果目标K线时间早于当前基础K线时间，说明跨日了
+			uDate = TimeUtils::getNextDate(uDate, 1);  // 将日期推进到下一天
+		uBarTime = TimeUtils::timeToMinBar(uDate, (uint32_t)uBarTime);  // 将日期和时间组合成完整的时间戳
 
-		WTSBarStruct* lastBar = NULL;
-		if(ret->size() > 0)
+		WTSBarStruct* lastBar = NULL;  // 指向结果K线数据中最后一条K线的指针
+		if(ret->size() > 0)  // 如果结果K线数据不为空
 		{
-			lastBar = ret->at(ret->size()-1);
+			lastBar = ret->at(ret->size()-1);  // 获取最后一条K线数据
 		}
 
-		bool bNewBar = false;
-		if(lastBar == NULL || lastBar->time != uBarTime)
+		bool bNewBar = false;  // 标记是否需要创建新的K线
+		if(lastBar == NULL || lastBar->time != uBarTime)  // 如果没有最后一条K线或时间不匹配
 		{
 			//只要日期和时间都不符,则认为已经是一条新的bar了
-			lastBar = new WTSBarStruct();
-			bNewBar = true;
+			lastBar = new WTSBarStruct();  // 创建新的K线结构
+			bNewBar = true;  // 标记为新K线
 
-			memcpy(lastBar, &curBar, sizeof(WTSBarStruct));
-			lastBar->date = uTradingDate;
-			lastBar->time = uBarTime;
+			memcpy(lastBar, &curBar, sizeof(WTSBarStruct));  // 复制基础K线数据到新K线
+			lastBar->date = uTradingDate;  // 设置交易日期
+			lastBar->time = uBarTime;  // 设置目标K线时间
 		}
 		else
 		{
-			bNewBar = false;
+			// **更新现有K线数据**
+			bNewBar = false;  // 标记为更新现有K线
 
-			lastBar->high = max(lastBar->high, curBar.high);
-			lastBar->low = min(lastBar->low, curBar.low);
-			lastBar->close = curBar.close;
-			lastBar->settle = curBar.settle;
+			lastBar->high = max(lastBar->high, curBar.high);  // 更新最高价：取当前最高价和基础K线最高价的较大值
+			lastBar->low = min(lastBar->low, curBar.low);  // 更新最低价：取当前最低价和基础K线最低价的较小值
+			lastBar->close = curBar.close;  // 更新收盘价：使用基础K线的收盘价
+			lastBar->settle = curBar.settle;  // 更新结算价：使用基础K线的结算价
 
-			lastBar->vol += curBar.vol;
-			lastBar->money += curBar.money;
-			lastBar->add += curBar.add;
-			lastBar->hold = curBar.hold;
+			lastBar->vol += curBar.vol;  // 累加成交量：将基础K线成交量加到目标K线
+			lastBar->money += curBar.money;  // 累加成交金额：将基础K线成交金额加到目标K线
+			lastBar->add += curBar.add;  // 累加持仓变化：将基础K线持仓变化加到目标K线
+			lastBar->hold = curBar.hold;  // 更新持仓量：使用基础K线的持仓量
 		}
 
-		if(bNewBar)
+		if(bNewBar)  // 如果是新K线
 		{
-			ret->appendBar(*lastBar);
-			delete lastBar;
+			ret->appendBar(*lastBar);  // 将新K线添加到结果数据中
+			delete lastBar;  // 删除临时K线对象，避免内存泄漏
 		}
 	}
 
-	//检查最后一条数据
+	//检查最后一条数据：处理未闭合的K线
 	{
-		WTSBarStruct* lastRawBar = baseKline->at(-1);
-		WTSBarStruct* lastDesBar = ret->at(-1);
+		WTSBarStruct* lastRawBar = baseKline->at(-1);  // 获取基础K线数据的最后一条
+		WTSBarStruct* lastDesBar = ret->at(-1);  // 获取目标K线数据的最后一条
 		//如果目标K线的最后一条数据的日期或者时间大于原始K线最后一条的日期或时间
 		if (lastDesBar->date > lastRawBar->date || lastDesBar->time > lastRawBar->time)
 		{
-			if (!bIncludeOpen)
-				ret->getDataRef().resize(ret->size() - 1);
-			else
-				ret->setClosed(false);
+			if (!bIncludeOpen)  // 如果不包含未闭合的K线
+				ret->getDataRef().resize(ret->size() - 1);  // 删除最后一条未闭合的K线
+			else  // 如果包含未闭合的K线
+				ret->setClosed(false);  // 标记最后一条K线为未闭合状态
 		}
 	}
 
-	return ret;
+	return ret;  // 返回生成的K线数据对象
 }
 
 /**
