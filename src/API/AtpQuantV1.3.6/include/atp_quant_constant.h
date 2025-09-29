@@ -1,219 +1,216 @@
-// code_generator_tag
-// constants:3c699dd546cc3a70c1497ce1c443e2cc types:77cca557b8ed3391410ffcd7964e7093 template:7af7ae9b5de41b3172019519f6a6279c code:8ea64d7deb6e4e8cd3f2d672289e96b0
 /**
- * Copyright (c) 2018 Archforce Financial Technology.  All rights reserved. 
- * Redistribution and use in source and binary forms, with or without  modification, are not permitted.   
- * For more information about Archforce, welcome to archforce.cn.
- * 
  * @file atp_quant_constant.h
- * @author Archforce
- * @brief constants
+ * @brief ATP量化交易API常量和类型定义文件
  * 
- * @note 常量及类型定义
+ * 本文件定义了ATP量化交易系统使用的所有常量、枚举值和类型定义，包括：
+ * 1. 配置属性常量 - API初始化和连接配置相关的键名常量
+ * 2. 错误码定义 - 完整的错误码体系，涵盖连接、登录、交易、查询等各个环节
+ * 3. 业务类型常量 - 支持的各种交易业务类型（现货、期权、ETF等）
+ * 4. 数据类型定义 - 标准化的数据类型别名，确保数据格式一致性
+ * 5. 枚举常量 - 订单类型、买卖方向、市场代码等业务枚举值
+ * 
+ * 设计逻辑：
+ * - 使用命名空间隔离不同类型的常量，避免命名冲突
+ * - 采用静态常量成员的方式定义枚举值，类型安全且便于扩展
+ * - 错误码采用分段设计，不同模块使用不同的错误码区间
+ * - 类型定义统一使用标准整数类型，确保跨平台兼容性
+ * - 常量命名采用k前缀，符合Google C++编码规范
+ * 
+ * 版权信息：
+ * Copyright (c) 2018 Archforce Financial Technology. All rights reserved.
+ * 未经许可，不得以任何形式复制、修改或分发本软件。
+ * 更多信息请访问：archforce.cn
  */
 
+// 代码生成器标记，用于版本控制和代码同步
+// constants:3c699dd546cc3a70c1497ce1c443e2cc types:77cca557b8ed3391410ffcd7964e7093 template:7af7ae9b5de41b3172019519f6a6279c code:8ea64d7deb6e4e8cd3f2d672289e96b0
 
-#ifndef ATP_QUANT_CONSTANT_H_
-#define ATP_QUANT_CONSTANT_H_
+#ifndef ATP_QUANT_CONSTANT_H_             // 防止头文件重复包含的预处理保护
+#define ATP_QUANT_CONSTANT_H_             // 定义头文件保护宏
 
-#include "atp_quant_export.h"
-#include <stdint.h>
-namespace atp
+#include "atp_quant_export.h"             // 包含API导出符号定义
+#include <stdint.h>                       // 包含标准整数类型定义
+namespace atp                             // ATP命名空间，避免符号冲突
 {
-    namespace quant_api
+    namespace quant_api                   // 量化API子命名空间
     {
+        /**
+         * @namespace prop
+         * @brief 配置属性键名常量命名空间
+         * 
+         * 定义了ATP量化API中所有配置参数的键名常量，
+         * 用于ATPProperties对象的参数设置和获取。
+         */
         namespace prop
         {
-            static constexpr const char* kLogLevel = "log_level";                                   // 日志级别，非必填，默认值ATPLogLevel::kInfo
-            static constexpr const char* kCommonLogPath = "common_log_path";                        // 业务日志路径，非必填，默认值空，表示当前可执行文件所在目录
-            static constexpr const char* kIndicatorLogPath = "indicator_log_path";                  // 指标日志路径，非必填，默认值空，表示当前可执行文件所在目录
-            static constexpr const char* kIoLogPath = "io_log_path";                                // IO日志路径，非必填，默认值空，表示当前可执行文件所在目录
-            static constexpr const char* kEncryptSchema = "encrypt_schema";                         // 加密模式，非必填，默认值ATPEncryptModeConst::kTransMode
-            static constexpr const char* kIsEnableLatency = "is_enable_latency";                    // 是否启用时延统计功能，非必填，默认值false
-            static constexpr const char* kCallbackResourceMode = "callback_resource_mode";          // 回调线程资源模式，非必填，默认值ATPCallbackResourceModeConst::kLowLatencyMode
-            static constexpr const char* kCallbackThreadMode = "callback_thread_mode";              // 回调线程模型，非必填，默认值ATPThreadModelConst::kShared-共享
-            static constexpr const char* kGroupId = "group_id";                                     // 回调线程分组ID，非必填，默认值0
-            static constexpr const char* kMinResidentMicro = "min_resident_micro";                  // 回调线程休眠时间，单位μs，非必填，默认值1μs
-            static constexpr const char* kRecevieThreadCpu = "recevie_thread_cpu";                  // 回调线程绑定CPU，非必填，默认值0xFF，表示不绑定
-            static constexpr const char* kIsTcpDirect = "is_tcp_direct";                            // 是否启用TCPDirect，非必填，默认值false
-            static constexpr const char* kBindIpAddress = "bind_ip_address";                        // 绑定本地网卡地址，非必填，默认值空，表示不绑定
-            static constexpr const char* kLocations = "locations";                                  // 网关地址，格式为"ip:port;ip:port"，必填
-            static constexpr const char* kAgwUser = "agw_user";                                     // 网关用户名，非必填，默认值空，表示匿名登录模式
-            static constexpr const char* kAgwPassword = "agw_password";                             // 网关用户密码，非必填，默认值空
-            static constexpr const char* kRetransmitMode = "retransmit_mode";                       // 重传模式，非必填，默认值ATPRetransmitModeConst::kQuickMode（ATP3.2.1.1版本开始支持）
-            static constexpr const char* kMultiChannelFlag = "multi_channel_flag";                  // 多通道自主订阅标志，非必填，默认值0xFF，表示以后台开关为准（ATP3.2.0版本开始支持）
-            static constexpr const char* kConnectionProtocol = "connection_protocol";               // 协议类型，非必填，默认值ATPConnectionProtocolConst::kTCPProtocol
-            static constexpr const char* kOrderWay = "order_way";                                   // 委托方式，必填
-            static constexpr const char* kClientFeatureCode = "client_feature_code";                // 终端识别码，必填
+            static constexpr const char* kLogLevel = "log_level";                                   // 业务日志级别配置键，类型：ATPLogLevelType，默认值：kInfo
+            static constexpr const char* kCommonLogPath = "common_log_path";                        // 业务日志文件路径配置键，类型：const char*，默认为可执行文件目录
+            static constexpr const char* kIndicatorLogPath = "indicator_log_path";                  // 性能指标日志文件路径配置键，类型：const char*，默认为可执行文件目录
+            static constexpr const char* kIoLogPath = "io_log_path";                                // IO操作日志文件路径配置键，类型：const char*，默认为可执行文件目录
+            static constexpr const char* kEncryptSchema = "encrypt_schema";                         // 密码加密模式配置键，类型：ATPEncryptModeType，默认为透传模式
+            static constexpr const char* kIsEnableLatency = "is_enable_latency";                    // 时延统计功能开关配置键，类型：bool，默认为false（关闭）
+            static constexpr const char* kCallbackResourceMode = "callback_resource_mode";          // 回调线程资源配置模式键，类型：ATPCallbackResourceModeType，默认为低时延模式
+            static constexpr const char* kCallbackThreadMode = "callback_thread_mode";              // 回调线程模型配置键，类型：ATPThreadModelType，默认为共享模式
+            static constexpr const char* kGroupId = "group_id";                                     // 回调线程分组ID配置键，类型：uint8_t，默认值为0
+            static constexpr const char* kMinResidentMicro = "min_resident_micro";                  // 回调线程最小休眠时间配置键，单位微秒，类型：uint32_t，默认1μs
+            static constexpr const char* kRecevieThreadCpu = "recevie_thread_cpu";                  // 回调线程CPU亲和性配置键，类型：uint8_t，0xFF表示不绑定特定CPU
+            static constexpr const char* kIsTcpDirect = "is_tcp_direct";                            // TCP Direct优化开关配置键，类型：bool，默认为false（关闭）
+            static constexpr const char* kBindIpAddress = "bind_ip_address";                        // 本地网卡IP绑定配置键，类型：const char*，启用TcpDirect或RUDP时必填
+            static constexpr const char* kLocations = "locations";                                  // 网关服务器地址配置键，格式："ip:port;ip:port"，必填参数
+            static constexpr const char* kAgwUser = "agw_user";                                     // 网关用户名配置键，类型：const char*，空值表示匿名登录模式
+            static constexpr const char* kAgwPassword = "agw_password";                             // 网关用户密码配置键，类型：const char*，匿名模式时可为空
+            static constexpr const char* kRetransmitMode = "retransmit_mode";                       // 消息重传模式配置键，类型：ATPRetransmitModeType，Quick模式不重传历史消息
+            static constexpr const char* kMultiChannelFlag = "multi_channel_flag";                  // 多通道自主订阅标志配置键，类型：uint8_t，0xFF表示以后台配置为准
+            static constexpr const char* kConnectionProtocol = "connection_protocol";               // 网络连接协议类型配置键，类型：ATPConnectionProtocolType，默认为TCP协议
+            static constexpr const char* kOrderWay = "order_way";                                   // 委托方式配置键，类型：char，必填参数，标识委托的报送方式
+            static constexpr const char* kClientFeatureCode = "client_feature_code";                // 终端识别码配置键，类型：const char*，必填参数，用于客户端身份验证
             
-        } // namespace prop
+        } // namespace prop                // 结束配置属性命名空间
 
         /**
-         * @brief 日志级别
+         * @brief 日志级别类型定义
+         * 
+         * 定义ATP量化API的日志输出级别，级别越高输出的日志信息越详细。
+         * 生产环境建议使用Info级别，调试时可使用Debug或Verbose级别。
          */ 
         typedef uint8_t ATPLogLevelType;
+        
+        /**
+         * @struct ATPLogLevel
+         * @brief 日志级别常量定义结构
+         * 
+         * 定义了ATP量化API支持的所有日志级别常量值。
+         * 日志级别从低到高：None < Fatal < Error < Warning < Info < Debug < Verbose
+         */
         struct QUANT_API ATPLogLevel
         {
-            static const ATPLogLevelType kNone = 0;
-            static const ATPLogLevelType kFatal = 1;
-            static const ATPLogLevelType kError = 2;
-            static const ATPLogLevelType kWarning = 3;
-            static const ATPLogLevelType kInfo = 4;
-            static const ATPLogLevelType kDebug = 5;
-            static const ATPLogLevelType kVerbose = 6;
+            static const ATPLogLevelType kNone = 0;          // 无日志输出，关闭所有日志记录
+            static const ATPLogLevelType kFatal = 1;         // 致命错误级别，仅记录导致程序无法继续运行的严重错误
+            static const ATPLogLevelType kError = 2;         // 错误级别，记录所有错误信息
+            static const ATPLogLevelType kWarning = 3;       // 警告级别，记录警告和错误信息
+            static const ATPLogLevelType kInfo = 4;          // 信息级别，记录一般业务信息、警告和错误（推荐的生产环境级别）
+            static const ATPLogLevelType kDebug = 5;         // 调试级别，记录详细的调试信息（开发调试时使用）
+            static const ATPLogLevelType kVerbose = 6;       // 详细级别，记录最详细的运行信息（性能调优时使用）
         };
 
-
         /**
-         * @brief 错误码类型 
-         **/ 
+         * @brief 错误码类型定义
+         * 
+         * ATP量化API使用32位有符号整数作为错误码类型。
+         * 0表示成功，负数表示系统级错误，正数表示业务级错误。
+         */ 
         typedef int32_t ATPErrorCodeType;
+        
+        /**
+         * @struct ATPErrorCode
+         * @brief ATP量化API错误码常量定义结构
+         * 
+         * 定义了ATP量化API的完整错误码体系，包括：
+         * - 系统级错误（负数）：连接、会话、初始化等基础设施错误
+         * - 业务级错误（正数）：登录、交易、查询等业务逻辑错误
+         * 
+         * 错误码分段设计：
+         * - 0: 成功
+         * - -1 ~ -999: 基础连接和API错误
+         * - -1000 ~ -1999: API构造和配置错误
+         * - 1 ~ 99: 登录相关错误
+         * - 100001 ~ 199999: 查询和业务逻辑错误
+         * - 200001 ~ 299999: 资金划拨相关错误
+         * - 300001 ~ 399999: 交易风控和业务规则错误
+         */
         struct QUANT_API ATPErrorCode
         {
-            //成功 
-            static const ATPErrorCodeType kSuccess = 0;      
-            //失败 
-            static const ATPErrorCodeType kFailure = -1;      
-            //正在连接 
-            static const ATPErrorCodeType kIsConnecting = -2;      
-            //已连接 
-            static const ATPErrorCodeType kAlreadyConneted = -3;      
-            //未连接 
-            static const ATPErrorCodeType kNotConnected = -4;      
-            //连接失败 
-            static const ATPErrorCodeType kConnectFailed = -5;      
-            //连接异常 
-            static const ATPErrorCodeType kConnectionError = -6;      
-            //等待连接关闭 
-            static const ATPErrorCodeType kWaitForDisconnected = -7;      
-            //会话不存在 
-            static const ATPErrorCodeType kSessionNotExist = -101;      
-            //会话创建中 
-            static const ATPErrorCodeType kIsEstablishing = -102;      
-            //会话已创建 
-            static const ATPErrorCodeType kIsEstablished = -103;      
-            //会话恢复中 
-            static const ATPErrorCodeType kIsRecovering = -104;      
-            //会话关闭中 
-            static const ATPErrorCodeType kIsClosing = -105;      
-            //会话创建失败 
-            static const ATPErrorCodeType kEstablishFailure = -106;      
-            //非法地址 
-            static const ATPErrorCodeType kInvalidLocation = -107;      
-            //地址为空 
-            static const ATPErrorCodeType kNullLocation = -108;      
-            //网关登录失败 
-            static const ATPErrorCodeType kAgwLoginFail = -114;      
-            //回报同步处理失败 
-            static const ATPErrorCodeType kAgwSyncFail = -115;      
-            //客户登录失败 
-            static const ATPErrorCodeType kCustLoginFail = -116;      
-            //动态库未加载 
-            static const ATPErrorCodeType kSharedLibraryNotLoad = -1000;      
-            //API对象未成功构造 
-            static const ATPErrorCodeType kNotSuccessfullyConstructed = -1002;      
-            //回调模式错误 
-            static const ATPErrorCodeType kCallbackModeError = -1003;      
-            //文件不存在 
-            static const ATPErrorCodeType kFileNotExist = -1005;      
-            //节点数据不存在 
-            static const ATPErrorCodeType kNodeNotExits = -1006;      
-            //加密模式错误 
-            static const ATPErrorCodeType kEncryptSchemaError = -1007;      
-            //打开文件失败 
-            static const ATPErrorCodeType kOpenFileFail = -1008;      
-            //动态库加载失败 
-            static const ATPErrorCodeType kLoadSharedLibraryFail = -1009;      
-            //登录模式错误 
-            static const ATPErrorCodeType kLoginModeError = -1010;      
-            //日志级别错误 
-            static const ATPErrorCodeType kLogLevelError = -1011;      
-            //不允许重复初始化 
-            static const ATPErrorCodeType kDupInitIsNotAllowed = -1012;      
-            //账户ID为空错误 
-            static const ATPErrorCodeType kUserIdNullError = -1013;      
-            //委托方式为空错误 
-            static const ATPErrorCodeType kOrderWayNullError = -1014;      
-            //终端识别码为空错误 
-            static const ATPErrorCodeType kClientFeatureCodeNullError = -1015;      
-            //分页查询异常 
-            static const ATPErrorCodeType kPagingQueryException = -1016;      
-            //公钥key文件不存在 
-            static const ATPErrorCodeType kPublicKeyFileNotExist = -1017;      
-            //初始化日志失败 
-            static const ATPErrorCodeType kInitLogFail = -1018;      
-            //基础字段检查不通过 
-            static const ATPErrorCodeType kBasicFieldsError = -1019;      
-            //资源已释放 
-            static const ATPErrorCodeType kIsReleased = -1020;      
-            //公钥key文件打开失败 
-            static const ATPErrorCodeType kPublicKeyFileOpenFail = -1021;      
-            //空指针异常 
-            static const ATPErrorCodeType kNullPointerError = -1022;      
-            //未进行静态初始化 
-            static const ATPErrorCodeType kNotStaticInit = -1023;      
-            //已调用静态停止函数 
-            static const ATPErrorCodeType kIsStoped = -1024;      
-            //未登录 
-            static const ATPErrorCodeType kNotLogin = -1025;      
-            //密码为空错误 
-            static const ATPErrorCodeType kPasswordNullError = -1026;      
-            //找不到用户 
-            static const ATPErrorCodeType kLCannotFind = 1;      
-            //禁止登录 
-            static const ATPErrorCodeType kLForbidLogin = 2;      
-            //重复登录 
-            static const ATPErrorCodeType kLRepeatLogin = 3;      
-            //密码错误 
-            static const ATPErrorCodeType kLPwdError = 4;      
-            //委托方式错误 
-            static const ATPErrorCodeType kLEnterModeError = 5;      
-            //未找到分区号 
-            static const ATPErrorCodeType kLNoPartion = 6;      
-            //未找到报盘交易单元 
-            static const ATPErrorCodeType kLNoPbuID = 7;      
-            //密码二次加密失败 
-            static const ATPErrorCodeType kLPassWDReEncodeError = 8;      
-            //未知业务类型 
-            static const ATPErrorCodeType kQUnKnownBusinessType = 100001;      
-            //无效的证券代码 
-            static const ATPErrorCodeType kQInvalidSecurityID = 100002;      
-            //交易方向错误 
-            static const ATPErrorCodeType kQInvalidSide = 100003;      
-            //价格小于0 
-            static const ATPErrorCodeType kQPriceLessThanZero = 100004;      
-            //价格小于价格档位 
-            static const ATPErrorCodeType kQPriceLessThanUnit = 100005;      
-            //单位数量价格小于等于0 
-            static const ATPErrorCodeType kQUnitPriceLessEqualZero = 100006;      
-            //无效的资金帐号 
-            static const ATPErrorCodeType kQInvalidFundId = 100007;      
-            //未找到指定的订单 
-            static const ATPErrorCodeType kQNotFoundOrder = 100008;      
-            //未找到指定的成交回报 
-            static const ATPErrorCodeType kQNotFoundTER = 100009;      
-            //未找到股份 
-            static const ATPErrorCodeType kQNotFoundShare = 100010;      
-            //账户无此持仓 
-            static const ATPErrorCodeType kQSharePositionNotExist = 100011;      
-            //账户证券持仓不足一手 
-            static const ATPErrorCodeType kQSharePositionInsufficient = 100012;      
-            //账户可用资金不足一手 
-            static const ATPErrorCodeType kQFundInsufficient = 100013;      
-            //没找到股份交易规则 
-            static const ATPErrorCodeType kQShareTradeRuleNotExist = 100014;      
-            //证券基础数据错误 
-            static const ATPErrorCodeType kQShareDataError = 100015;      
-            //资金交易规则不存在 
-            static const ATPErrorCodeType kQFundTradeRuleNotExist = 100016;      
-            //证券账户不存在 
-            static const ATPErrorCodeType kQInvalidAccountID = 100017;      
-            //客户号在客户信息表中不存在 
-            static const ATPErrorCodeType kQCustIDNonExist = 100018;      
-            //客户密码错误 
-            static const ATPErrorCodeType kQCustPWDError = 100019;      
-            //客户号未启用 
-            static const ATPErrorCodeType kQCustIDNotEnable = 100020;      
+            // ================================================================================================
+            // 基础系统错误码定义（负数区间）
+            // ================================================================================================
+            static const ATPErrorCodeType kSuccess = 0;                    // 操作成功，无错误
+            static const ATPErrorCodeType kFailure = -1;                   // 通用失败错误
+            static const ATPErrorCodeType kIsConnecting = -2;              // 网络连接建立中，请等待连接完成
+            static const ATPErrorCodeType kAlreadyConneted = -3;           // 已经建立连接，不能重复连接
+            static const ATPErrorCodeType kNotConnected = -4;              // 网络未连接，需要先建立连接
+            static const ATPErrorCodeType kConnectFailed = -5;             // 网络连接建立失败
+            static const ATPErrorCodeType kConnectionError = -6;           // 网络连接异常或中断
+            static const ATPErrorCodeType kWaitForDisconnected = -7;       // 等待连接关闭中
+            
+            // ================================================================================================
+            // 会话管理错误码（-101 ~ -199）
+            // ================================================================================================
+            static const ATPErrorCodeType kSessionNotExist = -101;             // 交易会话不存在，需要先建立会话
+            static const ATPErrorCodeType kIsEstablishing = -102;              // 交易会话创建中，请等待会话建立完成
+            static const ATPErrorCodeType kIsEstablished = -103;               // 交易会话已创建，不能重复创建
+            static const ATPErrorCodeType kIsRecovering = -104;                // 交易会话恢复中，系统正在重连
+            static const ATPErrorCodeType kIsClosing = -105;                   // 交易会话关闭中，请等待关闭完成
+            static const ATPErrorCodeType kEstablishFailure = -106;            // 交易会话创建失败
+            static const ATPErrorCodeType kInvalidLocation = -107;             // 服务器地址格式错误或无效
+            static const ATPErrorCodeType kNullLocation = -108;                // 服务器地址为空，必须提供有效地址
+            static const ATPErrorCodeType kAgwLoginFail = -114;                // 网关用户登录失败，检查网关用户名密码
+            static const ATPErrorCodeType kAgwSyncFail = -115;                 // 回报消息同步处理失败
+            static const ATPErrorCodeType kCustLoginFail = -116;               // 客户登录失败，检查客户号和密码
+            
+            // ================================================================================================
+            // API构造和配置错误码（-1000 ~ -1999）
+            // ================================================================================================
+            static const ATPErrorCodeType kSharedLibraryNotLoad = -1000;       // 动态库文件未正确加载，检查库文件路径
+            static const ATPErrorCodeType kNotSuccessfullyConstructed = -1002; // API对象构造失败，检查构造参数
+            static const ATPErrorCodeType kCallbackModeError = -1003;          // 回调线程模式配置错误
+            static const ATPErrorCodeType kFileNotExist = -1005;               // 配置文件或依赖文件不存在
+            static const ATPErrorCodeType kNodeNotExits = -1006;               // 配置节点数据不存在
+            static const ATPErrorCodeType kEncryptSchemaError = -1007;         // 加密模式配置错误
+            static const ATPErrorCodeType kOpenFileFail = -1008;               // 文件打开失败，检查文件权限
+            static const ATPErrorCodeType kLoadSharedLibraryFail = -1009;      // 动态库加载失败，检查库文件完整性
+            static const ATPErrorCodeType kLoginModeError = -1010;             // 登录模式配置错误
+            static const ATPErrorCodeType kLogLevelError = -1011;              // 日志级别配置错误
+            static const ATPErrorCodeType kDupInitIsNotAllowed = -1012;        // 不允许重复初始化，Init()只能调用一次
+            static const ATPErrorCodeType kUserIdNullError = -1013;            // 用户ID为空，必须提供有效的用户标识
+            static const ATPErrorCodeType kOrderWayNullError = -1014;          // 委托方式为空，必须指定委托方式
+            static const ATPErrorCodeType kClientFeatureCodeNullError = -1015; // 终端识别码为空，必须提供终端识别码
+            static const ATPErrorCodeType kPagingQueryException = -1016;       // 分页查询异常，检查查询参数
+            static const ATPErrorCodeType kPublicKeyFileNotExist = -1017;      // 公钥文件不存在，检查加密配置
+            static const ATPErrorCodeType kInitLogFail = -1018;                // 日志系统初始化失败
+            static const ATPErrorCodeType kBasicFieldsError = -1019;           // 基础字段校验失败，检查必填字段
+            static const ATPErrorCodeType kIsReleased = -1020;                 // API资源已释放，无法继续使用
+            static const ATPErrorCodeType kPublicKeyFileOpenFail = -1021;      // 公钥文件打开失败，检查文件权限
+            static const ATPErrorCodeType kNullPointerError = -1022;           // 空指针异常，传入了无效指针
+            static const ATPErrorCodeType kNotStaticInit = -1023;              // 未进行静态初始化，必须先调用Init()
+            static const ATPErrorCodeType kIsStoped = -1024;                   // 已调用静态停止函数，API已停止工作
+            static const ATPErrorCodeType kNotLogin = -1025;                   // 用户未登录，需要先登录
+            static const ATPErrorCodeType kPasswordNullError = -1026;          // 密码为空，必须提供有效密码
+            
+            // ================================================================================================
+            // 登录验证错误码（1 ~ 99）
+            // ================================================================================================
+            static const ATPErrorCodeType kLCannotFind = 1;                    // 找不到指定用户，检查客户号是否正确
+            static const ATPErrorCodeType kLForbidLogin = 2;                   // 用户被禁止登录，联系管理员处理
+            static const ATPErrorCodeType kLRepeatLogin = 3;                   // 用户重复登录，同一用户不能同时多次登录
+            static const ATPErrorCodeType kLPwdError = 4;                      // 用户密码错误，检查密码是否正确
+            static const ATPErrorCodeType kLEnterModeError = 5;                // 委托方式错误，检查委托方式配置
+            static const ATPErrorCodeType kLNoPartion = 6;                     // 未找到分区号，检查账户分区配置
+            static const ATPErrorCodeType kLNoPbuID = 7;                       // 未找到报盘交易单元，检查交易单元配置
+            static const ATPErrorCodeType kLPassWDReEncodeError = 8;           // 密码二次加密失败，检查加密配置
+            
+            // ================================================================================================
+            // 查询和业务逻辑错误码（100001 ~ 199999）
+            // ================================================================================================
+            static const ATPErrorCodeType kQUnKnownBusinessType = 100001;      // 未知的业务类型，检查业务类型参数
+            static const ATPErrorCodeType kQInvalidSecurityID = 100002;        // 无效的证券代码，检查证券代码格式
+            static const ATPErrorCodeType kQInvalidSide = 100003;              // 交易方向错误，检查买卖方向参数
+            static const ATPErrorCodeType kQPriceLessThanZero = 100004;        // 委托价格小于0，价格必须为正数
+            static const ATPErrorCodeType kQPriceLessThanUnit = 100005;        // 委托价格小于最小价格档位
+            static const ATPErrorCodeType kQUnitPriceLessEqualZero = 100006;   // 单位数量价格小于等于0
+            static const ATPErrorCodeType kQInvalidFundId = 100007;            // 无效的资金账号，检查资金账号是否正确
+            static const ATPErrorCodeType kQNotFoundOrder = 100008;            // 未找到指定的订单，检查订单编号
+            static const ATPErrorCodeType kQNotFoundTER = 100009;              // 未找到指定的成交回报
+            static const ATPErrorCodeType kQNotFoundShare = 100010;            // 未找到股份信息，检查证券代码
+            static const ATPErrorCodeType kQSharePositionNotExist = 100011;    // 账户无此证券持仓
+            static const ATPErrorCodeType kQSharePositionInsufficient = 100012; // 账户证券持仓数量不足一手
+            static const ATPErrorCodeType kQFundInsufficient = 100013;         // 账户可用资金不足
+            static const ATPErrorCodeType kQShareTradeRuleNotExist = 100014;   // 未找到股份交易规则配置
+            static const ATPErrorCodeType kQShareDataError = 100015;           // 证券基础数据错误
+            static const ATPErrorCodeType kQFundTradeRuleNotExist = 100016;    // 资金交易规则不存在
+            static const ATPErrorCodeType kQInvalidAccountID = 100017;         // 证券账户不存在或无效
+            static const ATPErrorCodeType kQCustIDNonExist = 100018;           // 客户号在客户信息表中不存在
+            static const ATPErrorCodeType kQCustPWDError = 100019;             // 客户密码错误
+            static const ATPErrorCodeType kQCustIDNotEnable = 100020;          // 客户号未启用，联系管理员处理      
             //ETF申购超最大现金替代比例 
             static const ATPErrorCodeType kQETFCashComponentOverRange = 100021;      
             //未找到etf的成分股基础证券信息 
@@ -1180,135 +1177,162 @@ namespace atp
          **/ 
         typedef double ATPAmtType;
         /**
-         * @brief 业务类型 
-         **/ 
+         * @brief 业务类型标识符类型定义
+         * 
+         * 用于标识ATP交易系统支持的各种业务类型，
+         * 每种业务类型对应不同的交易规则和处理流程。
+         */ 
         typedef uint8_t ATPBusinessTypeType;
+        
+        /**
+         * @struct ATPBusinessTypeConst
+         * @brief 业务类型常量定义结构
+         * 
+         * 定义了ATP交易系统支持的所有业务类型常量。
+         * 涵盖了现货、期权、债券、ETF、融资融券、港股通等各种业务。
+         * 每种业务类型都有特定的交易规则和风控要求。
+         */
         struct QUANT_API ATPBusinessTypeConst
         {
-            //默认值 
-            static const ATPBusinessTypeType kDefault = 0xFF;      
-            //所有类型 
-            static const ATPBusinessTypeType kAll = 0;      
-            //现货集中交易 
-            static const ATPBusinessTypeType kCashAuction = 1;      
-            //质押式回购交易 
-            static const ATPBusinessTypeType kRepoAuction = 2;      
-            //债券分销 
-            static const ATPBusinessTypeType kBondDistribution = 3;      
-            //期权集中交易 
-            static const ATPBusinessTypeType kOptionAuction = 4;      
-            //协议交易(大宗交易) 
-            static const ATPBusinessTypeType kBlockTrade = 5;      
-            //盘后定价交易 
-            static const ATPBusinessTypeType kAfterHoursPricing = 6;      
-            //转融通 
-            static const ATPBusinessTypeType kRefinancing = 7;      
-            //资产管理计划份额转让 
-            static const ATPBusinessTypeType kAssetTransfer = 8;      
-            //股票质押式回购 
-            static const ATPBusinessTypeType kCashPledgeRepo = 9;      
-            //约定购回 
-            static const ATPBusinessTypeType kAgreedRepo = 10;      
-            //质押式报价回购 
-            static const ATPBusinessTypeType kPledgeQuoteRepo = 11;      
-            //ETF实时申购赎回 
-            static const ATPBusinessTypeType kETFRealTimePurchaseRedemption = 12;      
-            //网上发行认购 
-            static const ATPBusinessTypeType kIssue = 13;      
-            //配售 
-            static const ATPBusinessTypeType kRightsIssue = 14;      
-            //债券转股回售 
-            static const ATPBusinessTypeType kSwapPutback = 15;      
-            //期权行权 
-            static const ATPBusinessTypeType kOptionExercise = 16;      
-            //开放式基金申赎 
-            static const ATPBusinessTypeType kLOF = 17;      
-            //要约收购 
-            static const ATPBusinessTypeType kTenderOffer = 18;      
-            //质押出入库业务 
-            static const ATPBusinessTypeType kPledgeInOrOut = 19;      
-            //质押式回购质押解押 
-            static const ATPBusinessTypeType kPledgeRepoPledgeOrSign = 19;      
-            //转托管 
-            static const ATPBusinessTypeType kDesignation = 20;      
-            //网络投票 
-            static const ATPBusinessTypeType kVoting = 21;      
-            //指定交易 
-            static const ATPBusinessTypeType kDesignatedTransaction = 22;      
-            //权证行权 
-            static const ATPBusinessTypeType kWarrantsExercise = 23;      
-            //密码服务 
-            static const ATPBusinessTypeType kPasswordService = 24;      
-            //保证金查询 
-            static const ATPBusinessTypeType kOpenMarginQuery = 25;      
-            //开放式基金转托管、分红方式设置 
-            static const ATPBusinessTypeType kOpenFundSetting = 26;      
-            //转处置 
-            static const ATPBusinessTypeType kTurnToDisposal = 27;      
-            //垫券还券 
-            static const ATPBusinessTypeType kCouponSwap = 28;      
-            //待清偿扣划 
-            static const ATPBusinessTypeType kPayOff = 29;      
-            //债券质押式协议回购 
-            static const ATPBusinessTypeType kBondPledgeAgreementRepo = 30;      
-            //分级基金实时分拆合并 
-            static const ATPBusinessTypeType kStructuredFund = 31;      
-            //备兑锁定解锁 
-            static const ATPBusinessTypeType kCoverLockOrUnlock = 32;      
-            //合并行权 
-            static const ATPBusinessTypeType kOptionCombinationExercise = 33;      
-            //组合保证金 
-            static const ATPBusinessTypeType kOptionCombination = 34;      
-            //高管额度划转 
-            static const ATPBusinessTypeType kReduceHoldingTransfer = 36;      
-            //期权普通与备兑互转 
-            static const ATPBusinessTypeType kOptionCoveredTransUncovered = 35;      
-            //港股通 
-            static const ATPBusinessTypeType kHKStocksThrough = 63;      
-            //港股通投票 
-            static const ATPBusinessTypeType kHKVoting = 64;      
-            //港股通转托管 
-            static const ATPBusinessTypeType kHKDesignationTransfer = 61;      
-            //港股通公司行为 
-            static const ATPBusinessTypeType kHKCorporateAction = 62;      
-            //盘后定价(科创板、创业板)交易业务 
-            static const ATPBusinessTypeType kTibAfterHour = 97;      
-            //融资融券交易业务 
-            static const ATPBusinessTypeType kMarginTrade = 99;      
-            //融资融券非交易业务 
-            static const ATPBusinessTypeType kMarginNoTrade = 100;      
-            //融资融券交易偿还 
-            static const ATPBusinessTypeType kMarginRepay = 101;      
-            //融资融券直接还款 
-            static const ATPBusinessTypeType kMarginDirectRepay = 102;      
+            static const ATPBusinessTypeType kDefault = 0xFF;                          // 默认值，用于初始化
+            static const ATPBusinessTypeType kAll = 0;                                 // 所有业务类型，用于查询时表示不限制业务类型
+            
+            // ================================================================================================
+            // 基础交易业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kCashAuction = 1;                         // 现货集中竞价交易（股票、基金等的买卖）
+            static const ATPBusinessTypeType kRepoAuction = 2;                         // 质押式回购交易（国债逆回购等）
+            static const ATPBusinessTypeType kBondDistribution = 3;                    // 债券分销业务
+            static const ATPBusinessTypeType kOptionAuction = 4;                       // 期权集中竞价交易
+            static const ATPBusinessTypeType kBlockTrade = 5;                          // 协议交易（大宗交易）
+            static const ATPBusinessTypeType kAfterHoursPricing = 6;                   // 盘后定价交易
+            
+            // ================================================================================================
+            // 特殊业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kRefinancing = 7;                         // 转融通业务
+            static const ATPBusinessTypeType kAssetTransfer = 8;                       // 资产管理计划份额转让
+            static const ATPBusinessTypeType kCashPledgeRepo = 9;                      // 股票质押式回购
+            static const ATPBusinessTypeType kAgreedRepo = 10;                         // 约定购回业务
+            static const ATPBusinessTypeType kPledgeQuoteRepo = 11;                    // 质押式报价回购
+            static const ATPBusinessTypeType kETFRealTimePurchaseRedemption = 12;      // ETF实时申购赎回
+            static const ATPBusinessTypeType kIssue = 13;                              // 网上发行认购（新股申购）
+            static const ATPBusinessTypeType kRightsIssue = 14;                        // 配售业务（配股配债）
+            static const ATPBusinessTypeType kSwapPutback = 15;                        // 债券转股回售
+            
+            // ================================================================================================
+            // 期权相关业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kOptionExercise = 16;                     // 期权行权
+            static const ATPBusinessTypeType kOptionCombinationExercise = 33;          // 期权合并行权
+            static const ATPBusinessTypeType kOptionCombination = 34;                  // 期权组合保证金
+            static const ATPBusinessTypeType kOptionCoveredTransUncovered = 35;        // 期权备兑与普通仓位互转
+            
+            // ================================================================================================
+            // 基金相关业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kLOF = 17;                                // 开放式基金申购赎回
+            static const ATPBusinessTypeType kOpenFundSetting = 26;                    // 开放式基金转托管、分红方式设置
+            static const ATPBusinessTypeType kStructuredFund = 31;                     // 分级基金实时分拆合并
+            
+            // ================================================================================================
+            // 其他业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kTenderOffer = 18;                        // 要约收购
+            static const ATPBusinessTypeType kPledgeInOrOut = 19;                      // 质押出入库业务
+            static const ATPBusinessTypeType kPledgeRepoPledgeOrSign = 19;             // 质押式回购质押解押（与质押出入库共用编号）
+            static const ATPBusinessTypeType kDesignation = 20;                        // 转托管
+            static const ATPBusinessTypeType kVoting = 21;                             // 网络投票
+            static const ATPBusinessTypeType kDesignatedTransaction = 22;              // 指定交易
+            static const ATPBusinessTypeType kWarrantsExercise = 23;                   // 权证行权
+            static const ATPBusinessTypeType kPasswordService = 24;                    // 密码服务
+            static const ATPBusinessTypeType kOpenMarginQuery = 25;                    // 保证金查询
+            static const ATPBusinessTypeType kTurnToDisposal = 27;                     // 转处置业务
+            static const ATPBusinessTypeType kCouponSwap = 28;                         // 垫券还券
+            static const ATPBusinessTypeType kPayOff = 29;                             // 待清偿扣划
+            static const ATPBusinessTypeType kBondPledgeAgreementRepo = 30;            // 债券质押式协议回购
+            static const ATPBusinessTypeType kCoverLockOrUnlock = 32;                  // 备兑锁定解锁
+            static const ATPBusinessTypeType kReduceHoldingTransfer = 36;              // 高管减持额度划转
+            
+            // ================================================================================================
+            // 港股通相关业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kHKDesignationTransfer = 61;              // 港股通转托管
+            static const ATPBusinessTypeType kHKCorporateAction = 62;                  // 港股通公司行为
+            static const ATPBusinessTypeType kHKStocksThrough = 63;                    // 港股通交易
+            static const ATPBusinessTypeType kHKVoting = 64;                           // 港股通投票
+            
+            // ================================================================================================
+            // 特殊板块业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kTibAfterHour = 97;                       // 盘后定价交易（科创板、创业板）
+            
+            // ================================================================================================
+            // 融资融券相关业务类型
+            // ================================================================================================
+            static const ATPBusinessTypeType kMarginTrade = 99;                        // 融资融券交易业务
+            static const ATPBusinessTypeType kMarginNoTrade = 100;                     // 融资融券非交易业务
+            static const ATPBusinessTypeType kMarginRepay = 101;                       // 融资融券交易偿还
+            static const ATPBusinessTypeType kMarginDirectRepay = 102;                 // 融资融券直接还款
         };
+        // ================================================================================================
+        // 基础数据类型定义区域
+        // ================================================================================================
+        
         /**
-         * @brief 营业部ID 
-         **/ 
+         * @brief 营业部标识符类型
+         * 
+         * 用于标识证券公司的营业部，最大长度为10个字符加结束符。
+         * 每个营业部都有唯一的标识码，用于业务权限控制和资金清算。
+         */ 
         typedef char ATPBranchIDType[11];
+        
         /**
-         * @brief 请求序号；需要全局保持唯一，由API使用者负责维护 
-         **/ 
+         * @brief 请求序号类型
+         * 
+         * 用于标识每个API请求的唯一序号，需要全局保持唯一性。
+         * 由API使用者负责维护，用于匹配请求和响应，建议使用递增序列。
+         */ 
         typedef int64_t ATPRequestIDType;
+        
         /**
-         * @brief 客户订单编号  
-         **/ 
+         * @brief 客户订单编号类型
+         * 
+         * 客户端生成的订单唯一标识符，用于跟踪和管理订单。
+         * 每个订单都应有唯一的编号，便于订单状态查询和撤单操作。
+         */ 
         typedef int64_t ATPClOrdNOType;
+        
         /**
-         * @brief 客户自定义委托批号  
-         **/ 
+         * @brief 客户自定义委托批次号类型
+         * 
+         * 客户端可以为一批订单设置相同的批次号，便于批量管理。
+         * 支持按批次号进行批量撤单等操作，提高交易效率。
+         */ 
         typedef uint64_t ATPCustomOrderNOType;
+        
         /**
-         * @brief 申报合同号 
-         **/ 
+         * @brief 申报合同号类型
+         * 
+         * 交易所或柜台系统生成的订单标识符，最大长度为10个字符加结束符。
+         * 用于在交易所层面唯一标识一个订单，是撤单操作的重要依据。
+         */ 
         typedef char ATPClOrdIDType[11];
+        
         /**
-         * @brief 货币种类（仅支持人民币） 
-         **/ 
+         * @brief 货币种类类型
+         * 
+         * 标识交易使用的货币类型，当前仅支持人民币（CNY）。
+         * 最大长度为4个字符加结束符，为未来支持多币种预留空间。
+         */ 
         typedef char ATPCurrencyType[5];
+        
         /**
-         * @brief 日期,格式(YYYYmmDD) 
-         **/ 
+         * @brief 日期类型
+         * 
+         * 表示日期的64位整数类型，格式为YYYYMMDD。
+         * 例如：20231225表示2023年12月25日。
+         */ 
         typedef int64_t ATPDate8Type;
         /**
          * @brief ETF 成交回报类型 
@@ -1341,60 +1365,82 @@ namespace atp
             static const ATPRetransmitModeType kRestartMode = 1;      
         };
         /**
-         * @brief 市场代码 
-         **/ 
+         * @brief 市场代码类型定义
+         * 
+         * 用于标识不同的证券交易市场，采用16位无符号整数。
+         * 每个市场都有唯一的数字标识，用于区分不同交易所的证券。
+         */ 
         typedef uint16_t ATPMarketIDType;
+        
+        /**
+         * @struct ATPMarketIDConst
+         * @brief 市场代码常量定义结构
+         * 
+         * 定义了ATP交易系统支持的所有证券市场的标识常量。
+         * 涵盖了中国大陆主要证券交易所和港股市场。
+         */
         struct QUANT_API ATPMarketIDConst
         {
-            //空 
-            static const ATPMarketIDType kNULL = 0;      
-            //上海 
-            static const ATPMarketIDType kShangHai = 101;      
-            //深圳 
-            static const ATPMarketIDType kShenZhen = 102;      
-            //香港 
-            static const ATPMarketIDType kXiangGang = 103;      
-            //北京 
-            static const ATPMarketIDType kBeiJing = 104;      
+            static const ATPMarketIDType kNULL = 0;              // 空值，用于初始化或表示不限制市场
+            static const ATPMarketIDType kShangHai = 101;        // 上海证券交易所（包括主板、科创板）
+            static const ATPMarketIDType kShenZhen = 102;        // 深圳证券交易所（包括主板、中小板、创业板）
+            static const ATPMarketIDType kXiangGang = 103;       // 香港证券交易所（港股通业务）
+            static const ATPMarketIDType kBeiJing = 104;         // 北京证券交易所（新三板精选层）
         };
         /**
-         * @brief 订单类型 
-         **/ 
+         * @brief 订单类型标识符类型定义
+         * 
+         * 用于标识不同的订单价格类型，采用字符类型。
+         * 不同的订单类型有不同的成交规则和价格优先级。
+         */ 
         typedef char ATPOrdTypeType;
+        
+        /**
+         * @struct ATPOrderTypeConst
+         * @brief 订单类型常量定义结构
+         * 
+         * 定义了ATP交易系统支持的所有订单类型常量。
+         * 包括限价单、市价单及各种特殊的价格优先级订单类型。
+         * 不同交易所可能支持不同的订单类型。
+         */
         struct QUANT_API ATPOrderTypeConst
         {
-            //默认值 
-            static const ATPOrdTypeType kDefault = ' ';      
-            //市价剩余转限价,适用于上交所（已弃用） 
-            static const ATPOrdTypeType kTransferFixed = 'k';      
-            //限价委托、增强限价 
-            static const ATPOrdTypeType kFixedNew = 'a';      
-            //本方最优 
-            static const ATPOrdTypeType kLocalOptimalNew = 'b';      
-            //对手方最优剩余转限价 
-            static const ATPOrdTypeType kCountPartyOptimalTransferFixed = 'c';      
-            //立即成交剩余撤销 
-            static const ATPOrdTypeType kImmediateDealTransferCancel = 'd';      
-            //全额成交或撤销 
-            static const ATPOrdTypeType kFullDealOrCancel = 'e';      
-            //最优五档全额成交剩余撤销 
-            static const ATPOrdTypeType kOptimalFiveLevelFullDealTransferCancel = 'f';      
-            //最优五档即时成交剩余转限价 
-            static const ATPOrdTypeType kOptimalFiveLevelImmediateDealTransferFixed = 'g';      
-            //市价剩余转限价 
-            static const ATPOrdTypeType kMarketTransferFixed = 'h';      
-            //限价全额成交或撤销 
-            static const ATPOrdTypeType kFixedFullDealOrCancel = 'i';      
-            //竞价限价（深圳）（用于港股通业务） 
-            static const ATPOrdTypeType kSzBiddingFixed = 'j';      
-            //竞价限价（上海)（用于港股通业务） 
-            static const ATPOrdTypeType kShBiddingFixed = 'k';      
-            //市价（已弃用） 
-            static const ATPOrdTypeType kMarket = '1';      
-            //限价（已弃用） 
-            static const ATPOrdTypeType kFixed = '2';      
-            //本方最优（已弃用） 
-            static const ATPOrdTypeType kLocalOptimal = 'U';      
+            static const ATPOrdTypeType kDefault = ' ';                                     // 默认值，用于初始化
+            
+            // ================================================================================================
+            // 限价订单类型
+            // ================================================================================================
+            static const ATPOrdTypeType kFixedNew = 'a';                                   // 限价委托（增强限价），按指定价格或更优价格成交
+            static const ATPOrdTypeType kFixedFullDealOrCancel = 'i';                      // 限价全额成交或撤销，要么全部成交要么全部撤销
+            
+            // ================================================================================================
+            // 市价订单类型
+            // ================================================================================================
+            static const ATPOrdTypeType kLocalOptimalNew = 'b';                            // 本方最优价格，以本方队列最优价格成交
+            static const ATPOrdTypeType kCountPartyOptimalTransferFixed = 'c';             // 对手方最优价格，剩余部分转为限价单
+            static const ATPOrdTypeType kMarketTransferFixed = 'h';                        // 市价委托，剩余部分转为限价单
+            
+            // ================================================================================================
+            // 即时成交订单类型
+            // ================================================================================================
+            static const ATPOrdTypeType kImmediateDealTransferCancel = 'd';                // 立即成交剩余撤销（IOC订单）
+            static const ATPOrdTypeType kFullDealOrCancel = 'e';                           // 全额成交或撤销（FOK订单）
+            static const ATPOrdTypeType kOptimalFiveLevelFullDealTransferCancel = 'f';     // 最优五档全额成交剩余撤销
+            static const ATPOrdTypeType kOptimalFiveLevelImmediateDealTransferFixed = 'g'; // 最优五档即时成交剩余转限价
+            
+            // ================================================================================================
+            // 港股通专用订单类型
+            // ================================================================================================
+            static const ATPOrdTypeType kSzBiddingFixed = 'j';                             // 深圳竞价限价（港股通业务专用）
+            static const ATPOrdTypeType kShBiddingFixed = 'k';                            // 上海竞价限价（港股通业务专用）
+            
+            // ================================================================================================
+            // 已弃用的订单类型（向后兼容）
+            // ================================================================================================
+            static const ATPOrdTypeType kTransferFixed = 'k';                             // 市价剩余转限价（已弃用，仅上交所）
+            static const ATPOrdTypeType kMarket = '1';                                     // 市价委托（已弃用）
+            static const ATPOrdTypeType kFixed = '2';                                      // 限价委托（已弃用）
+            static const ATPOrdTypeType kLocalOptimal = 'U';                              // 本方最优（已弃用）
         };
         /**
          * @brief 委托方式 
@@ -1461,95 +1507,124 @@ namespace atp
          **/ 
         typedef char ATPSecuritySymbolType[41];
         /**
-         * @brief 买卖方向 
-         **/ 
+         * @brief 买卖方向标识符类型定义
+         * 
+         * 用于标识交易的方向或操作类型，采用字符类型。
+         * 涵盖了基本的买卖操作和各种特殊业务操作。
+         */ 
         typedef char ATPSideType;
+        
+        /**
+         * @struct ATPSideConst
+         * @brief 买卖方向常量定义结构
+         * 
+         * 定义了ATP交易系统支持的所有交易方向和操作类型常量。
+         * 包括基本的买卖操作、回购操作、基金操作、融资融券操作等。
+         */
         struct QUANT_API ATPSideConst
         {
-            //默认值 
-            static const ATPSideType kDefault = ' ';      
-            //所有 
-            static const ATPSideType kAll = '0';      
-            //买 
-            static const ATPSideType kBuy = '1';      
-            //卖 
-            static const ATPSideType kSell = '2';      
-            //正回购 
-            static const ATPSideType kRepo = '3';      
-            //逆回购 
-            static const ATPSideType kAntiRepo = '4';      
-            //转股 
-            static const ATPSideType kSwap = '5';      
-            //回售 
-            static const ATPSideType kPutBack = '6';      
-            //预受要约 
-            static const ATPSideType kTenderOffer = '7';      
-            //解除预受要约 
-            static const ATPSideType kDisTenderOffer = '8';      
-            //回售撤销 
-            static const ATPSideType kPutBackRevoke = '9';      
-            //密码激活 
-            static const ATPSideType kActivation = 'A';      
-            //密码注销 
-            static const ATPSideType kCancellation = 'C';      
-            //申购 
-            static const ATPSideType kPurchase = 'D';      
-            //赎回 
-            static const ATPSideType kRedeem = 'E';      
-            //出借 
-            static const ATPSideType kLoan = 'F';      
-            //借入 
-            static const ATPSideType kBorrow = 'G';      
-            //实物申购 
-            static const ATPSideType kPhysicalPurchase = 'P';      
-            //实物赎回 
-            static const ATPSideType kPhysicalRedemption = 'R';      
-            //分拆 
-            static const ATPSideType kOpen = 'O';      
-            //合并 
-            static const ATPSideType kMerge = 'M';      
-            //查询 
-            static const ATPSideType kQuery = 'Q';      
-            //转托管 
-            static const ATPSideType kDesignationTransfer = 'J';      
-            //反向托管 
-            static const ATPSideType kReverDsignationTransfer = 'K';      
-            //锁定 
-            static const ATPSideType kLock = 'Z';      
-            //解锁 
-            static const ATPSideType kUnLock = 'Y';      
-            //转处置 
-            static const ATPSideType kDisposal = '@';      
-            //转处置返还 
-            static const ATPSideType kDisposalReturn = '%';      
-            //质押入库 
-            static const ATPSideType kPledgeIn = 'H';      
-            //质押出库 
-            static const ATPSideType kPledgeOut = 'I';      
-            //卖券还款 
-            static const ATPSideType kSellRepay = 'N';      
-            //买券还券 
-            static const ATPSideType kBuyRedeliver = 'U';      
-            //融资买入 
-            static const ATPSideType kFinancingBuy = 'B';      
-            //融券卖出 
-            static const ATPSideType kLoanSell = 'S';      
-            //直接还券 
-            static const ATPSideType kReDeliver = 'T';      
-            //担保品提交 
-            static const ATPSideType kGageIn = 'V';      
-            //担保品返还 
-            static const ATPSideType kGageOut = 'L';      
-            //融资平仓 
-            static const ATPSideType kMarginOffset = 'W';      
-            //融券平仓 
-            static const ATPSideType kShortSaleOffset = 'X';      
-            //券源提交 
-            static const ATPSideType kSourceSecurityIn = '$';      
-            //券源返还 
-            static const ATPSideType kSourceSecurityOut = '*';      
-            //余券划转 
-            static const ATPSideType kExtraSecurityOut = '#';      
+            static const ATPSideType kDefault = ' ';                           // 默认值，用于初始化
+            static const ATPSideType kAll = '0';                               // 所有方向，用于查询时表示不限制买卖方向
+            
+            // ================================================================================================
+            // 基本买卖方向
+            // ================================================================================================
+            static const ATPSideType kBuy = '1';                               // 买入操作
+            static const ATPSideType kSell = '2';                              // 卖出操作
+            
+            // ================================================================================================
+            // 回购业务方向
+            // ================================================================================================
+            static const ATPSideType kRepo = '3';                              // 正回购（借入资金，质押债券）
+            static const ATPSideType kAntiRepo = '4';                          // 逆回购（借出资金，获得债券质押）
+            
+            // ================================================================================================
+            // 债券特殊操作
+            // ================================================================================================
+            static const ATPSideType kSwap = '5';                              // 转股操作（可转债转换为股票）
+            static const ATPSideType kPutBack = '6';                           // 回售操作（债券回售给发行人）
+            static const ATPSideType kPutBackRevoke = '9';                     // 回售撤销
+            
+            // ================================================================================================
+            // 要约收购操作
+            // ================================================================================================
+            static const ATPSideType kTenderOffer = '7';                       // 预受要约（接受要约收购）
+            static const ATPSideType kDisTenderOffer = '8';                    // 解除预受要约
+            
+            // ================================================================================================
+            // 密码服务操作
+            // ================================================================================================
+            static const ATPSideType kActivation = 'A';                        // 密码激活
+            static const ATPSideType kCancellation = 'C';                      // 密码注销
+            
+            // ================================================================================================
+            // 基金申购赎回操作
+            // ================================================================================================
+            static const ATPSideType kPurchase = 'D';                          // 申购操作（基金、ETF）
+            static const ATPSideType kRedeem = 'E';                            // 赎回操作（基金、ETF）
+            static const ATPSideType kPhysicalPurchase = 'P';                  // 实物申购
+            static const ATPSideType kPhysicalRedemption = 'R';                // 实物赎回
+            
+            // ================================================================================================
+            // 分级基金操作
+            // ================================================================================================
+            static const ATPSideType kOpen = 'O';                              // 分拆操作（母基金分拆为子基金）
+            static const ATPSideType kMerge = 'M';                             // 合并操作（子基金合并为母基金）
+            
+            // ================================================================================================
+            // 转融通操作
+            // ================================================================================================
+            static const ATPSideType kLoan = 'F';                              // 出借操作
+            static const ATPSideType kBorrow = 'G';                            // 借入操作
+            
+            // ================================================================================================
+            // 托管相关操作
+            // ================================================================================================
+            static const ATPSideType kDesignationTransfer = 'J';               // 转托管
+            static const ATPSideType kReverDsignationTransfer = 'K';           // 反向转托管
+            
+            // ================================================================================================
+            // 锁定解锁操作
+            // ================================================================================================
+            static const ATPSideType kLock = 'Z';                              // 锁定操作（备兑锁定等）
+            static const ATPSideType kUnLock = 'Y';                            // 解锁操作
+            
+            // ================================================================================================
+            // 处置相关操作
+            // ================================================================================================
+            static const ATPSideType kDisposal = '@';                          // 转处置
+            static const ATPSideType kDisposalReturn = '%';                    // 转处置返还
+            
+            // ================================================================================================
+            // 质押业务操作
+            // ================================================================================================
+            static const ATPSideType kPledgeIn = 'H';                          // 质押入库
+            static const ATPSideType kPledgeOut = 'I';                         // 质押出库
+            
+            // ================================================================================================
+            // 融资融券操作
+            // ================================================================================================
+            static const ATPSideType kFinancingBuy = 'B';                      // 融资买入
+            static const ATPSideType kLoanSell = 'S';                          // 融券卖出
+            static const ATPSideType kSellRepay = 'N';                         // 卖券还款
+            static const ATPSideType kBuyRedeliver = 'U';                      // 买券还券
+            static const ATPSideType kReDeliver = 'T';                         // 直接还券
+            static const ATPSideType kMarginOffset = 'W';                      // 融资平仓
+            static const ATPSideType kShortSaleOffset = 'X';                   // 融券平仓
+            
+            // ================================================================================================
+            // 担保品和券源操作
+            // ================================================================================================
+            static const ATPSideType kGageIn = 'V';                            // 担保品提交
+            static const ATPSideType kGageOut = 'L';                           // 担保品返还
+            static const ATPSideType kSourceSecurityIn = '$';                  // 券源提交
+            static const ATPSideType kSourceSecurityOut = '*';                 // 券源返还
+            static const ATPSideType kExtraSecurityOut = '#';                  // 余券划转
+            
+            // ================================================================================================
+            // 查询操作
+            // ================================================================================================
+            static const ATPSideType kQuery = 'Q';                             // 查询操作
         };
         /**
          * @brief 指定查询返回数量 
@@ -1786,20 +1861,27 @@ namespace atp
          **/ 
         typedef double ATPMaxCashRatioType;
         /**
-         * @brief 多通道推送自主订阅标志 
-         **/ 
+         * @brief 多通道推送自主订阅标志类型定义
+         * 
+         * 用于控制多通道消息推送的订阅行为，支持主动订阅和取消订阅。
+         * 多通道推送可以提高消息处理的并发性能。
+         */ 
         typedef uint8_t ATPMultiChannelFlagType;
+        
+        /**
+         * @struct ATPMultiChannelFlagConst
+         * @brief 多通道订阅标志常量定义结构
+         * 
+         * 定义了多通道推送订阅的控制标志常量。
+         * 客户端可以主动控制是否订阅多通道推送消息。
+         */
         struct QUANT_API ATPMultiChannelFlagConst
         {
-            //默认值 
-            static const ATPMultiChannelFlagType kDefault = 0xFF;      
-            //主动取消订阅 
-            static const ATPMultiChannelFlagType kActiveNoSubscribe = 0;      
-            //主动订阅 
-            static const ATPMultiChannelFlagType kActiveSubscribe = 1;      
+            static const ATPMultiChannelFlagType kDefault = 0xFF;              // 默认值，以后台系统配置为准
+            static const ATPMultiChannelFlagType kActiveNoSubscribe = 0;       // 主动取消订阅多通道推送
+            static const ATPMultiChannelFlagType kActiveSubscribe = 1;         // 主动订阅多通道推送
         };
-    } // namespace quant_api
-} // namespace atp
+    } // namespace quant_api    // 结束量化API命名空间
+} // namespace atp            // 结束ATP命名空间
 
-
-#endif    //ATP_QUANT_CONSTANT_H_
+#endif    //ATP_QUANT_CONSTANT_H_    // 结束头文件保护

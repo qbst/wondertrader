@@ -1,439 +1,1110 @@
-// code_generator_tag
-// requests:5f024b1066515f963731eec331bd9d61 responses:b0e958b18fde3671566c702f3c2a40de constants:3c699dd546cc3a70c1497ce1c443e2cc types:77cca557b8ed3391410ffcd7964e7093 trade_messages:3d837391385002e580b6d269eb6d2c26 template:cbd7ccf06b1731da577df564fc12dad1 code:6aebb897521436000d87bdda869bcd55
 /**
- * Copyright (c) 2018 Archforce Financial Technology.  All rights reserved.
- * Redistribution and use in source and binary forms, with or without  modification, are not permitted.
- * For more information about Archforce, welcome to archforce.cn.
- *
  * @file atp_quant_msg.h
- * @author Archforce
- * @brief message
- *
- * @note ATPQuantAPI消息定义
+ * @brief ATP量化交易API消息定义文件
+ * 
+ * 本文件定义了ATP量化交易系统使用的所有消息类和数据结构，包括：
+ * 1. 基础工具类 - Buffer（二进制数据流）、ATPProperties（配置属性）
+ * 2. 错误信息类 - ATPRspErrorInfo（统一错误信息格式）
+ * 3. 认证相关类 - ClientFeatureCode（终端识别码）、ATPLoginProperty（登录属性）
+ * 4. 用户信息类 - ATPCustomerInfo（客户信息）、ATPConnectionInfo（连接信息）
+ * 5. 交易消息类 - 下单、撤单、查询等各种业务消息的请求和响应
+ * 
+ * 设计逻辑：
+ * - 采用面向对象设计，每种消息都是独立的类
+ * - 使用纯虚函数定义接口，隐藏具体实现细节
+ * - 提供统一的消息创建和销毁接口（NewMessage/DeleteMessage）
+ * - 支持消息的序列化和反序列化（Encode/Decode）
+ * - 禁用拷贝构造和赋值操作，确保消息对象的唯一性
+ * - 使用RAII模式管理消息对象的生命周期
+ * 
+ * 版权信息：
+ * Copyright (c) 2018 Archforce Financial Technology. All rights reserved.
+ * 未经许可，不得以任何形式复制、修改或分发本软件。
+ * 更多信息请访问：archforce.cn
  */
-#ifndef ATP_QUANT_MSG_H_
-#define ATP_QUANT_MSG_H_
-#include <atp_quant_constant.h>
 
-//前置声明
-namespace atp
+// 代码生成器标记，用于版本控制和代码同步
+// requests:5f024b1066515f963731eec331bd9d61 responses:b0e958b18fde3671566c702f3c2a40de constants:3c699dd546cc3a70c1497ce1c443e2cc types:77cca557b8ed3391410ffcd7964e7093 trade_messages:3d837391385002e580b6d269eb6d2c26 template:cbd7ccf06b1731da577df564fc12dad1 code:6aebb897521436000d87bdda869bcd55
+
+#ifndef ATP_QUANT_MSG_H_                  // 防止头文件重复包含的预处理保护
+#define ATP_QUANT_MSG_H_                  // 定义头文件保护宏
+#include <atp_quant_constant.h>           // 包含ATP量化交易常量定义
+
+// ================================================================================================
+// 前置声明区域
+// ================================================================================================
+namespace atp                             // ATP命名空间
 {
-    namespace api
+    namespace api                         // API基础组件命名空间
     {
-        class PropertiesImpl;
+        class PropertiesImpl;             // 前置声明：属性实现类，用于内部实现细节的封装
     }
 }
 
-namespace atp
+namespace atp                             // ATP命名空间
 {
-    namespace quant_api
+    namespace quant_api                   // 量化API命名空间
     {
         /**
-         * @brief 二进制数据流结构
+         * @class Buffer
+         * @brief 二进制数据流封装类
+         * 
+         * 用于封装二进制数据流，主要用于消息的序列化和反序列化。
+         * 提供了数据长度和数据指针的统一管理，确保数据传输的安全性。
+         * 
+         * 使用场景：
+         * - 消息编码后的二进制数据存储
+         * - 网络传输的数据包封装
+         * - 消息解码时的数据源
          */
         class QUANT_API Buffer
         {
         public:
+            /**
+             * @brief 默认构造函数
+             * 
+             * 创建空的数据流对象，数据长度为0，数据指针为空。
+             */
             Buffer() : data_size(0), data(nullptr) {}
 
+            /**
+             * @brief 参数化构造函数
+             * @param data_size 二进制数据流的长度（字节数）
+             * @param data 指向二进制数据流首地址的指针
+             * 
+             * 创建包含指定数据的数据流对象，通常用于消息解码。
+             */
             Buffer(const uint32_t data_size, const char* data) : data_size(data_size), data(data) {}
 
         public:
-            uint32_t data_size;     // 二进制数据流长度
-            const char* data;       // 二进制数据流首地址
+            uint32_t data_size;               // 二进制数据流的长度（字节数）
+            const char* data;                 // 指向二进制数据流首地址的常量指针
         };
 
         /**
-         * @brief 配置属性类
+         * @class ATPProperties
+         * @brief 配置属性管理类
+         * 
+         * 用于管理ATP量化API的各种配置参数，支持多种数据类型的键值对存储。
+         * 提供类型安全的参数设置和获取接口，支持默认值机制。
+         * 
+         * 主要功能：
+         * - 支持字符串、布尔值、各种整数类型的参数存储
+         * - 提供类型安全的参数获取接口
+         * - 支持参数存在性检查
+         * - 使用PIMPL模式隐藏实现细节
          */
         class QUANT_API ATPProperties
         {
         public:
             /**
              * @brief 构造函数
+             * 
+             * 创建空的配置属性对象，初始化内部实现。
              */
             ATPProperties();
 
             /**
              * @brief 析构函数
+             * 
+             * 清理配置属性对象，释放内部实现资源。
              */
             ~ATPProperties();
 
+            /**
+             * @brief 禁用拷贝构造函数
+             * 
+             * 配置属性对象包含内部状态，不允许拷贝构造。
+             */
             ATPProperties(const ATPProperties&) = delete;
 
+            /**
+             * @brief 禁用赋值操作符
+             * 
+             * 配置属性对象包含内部状态，不允许赋值操作。
+             */
             ATPProperties& operator=(const ATPProperties&) = delete;
 
+            // ================================================================================================
+            // 参数设置接口（支持多种数据类型）
+            // ================================================================================================
+            
+            /**
+             * @brief 设置字符串类型参数
+             * @param key 参数键名
+             * @param value 参数值（字符串）
+             */
             void SetValue(const char* key, const char* value);
 
+            /**
+             * @brief 设置布尔类型参数
+             * @param key 参数键名
+             * @param value 参数值（布尔值）
+             */
             void SetValue(const char* key, bool value);
 
+            /**
+             * @brief 设置字符类型参数
+             * @param key 参数键名
+             * @param value 参数值（字符）
+             */
             void SetValue(const char* key, char value);
 
+            /**
+             * @brief 设置8位无符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（8位无符号整数）
+             */
             void SetValue(const char* key, uint8_t value);
 
+            /**
+             * @brief 设置8位有符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（8位有符号整数）
+             */
             void SetValue(const char* key, int8_t value);
 
+            /**
+             * @brief 设置16位无符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（16位无符号整数）
+             */
             void SetValue(const char* key, uint16_t value);
 
+            /**
+             * @brief 设置16位有符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（16位有符号整数）
+             */
             void SetValue(const char* key, int16_t value);
 
+            /**
+             * @brief 设置32位无符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（32位无符号整数）
+             */
             void SetValue(const char* key, uint32_t value);
 
+            /**
+             * @brief 设置32位有符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（32位有符号整数）
+             */
             void SetValue(const char* key, int32_t value);
 
+            /**
+             * @brief 设置64位无符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（64位无符号整数）
+             */
             void SetValue(const char* key, uint64_t value);
 
+            /**
+             * @brief 设置64位有符号整数参数
+             * @param key 参数键名
+             * @param value 参数值（64位有符号整数）
+             */
             void SetValue(const char* key, int64_t value);
 
+            // ================================================================================================
+            // 参数获取接口（支持默认值）
+            // ================================================================================================
+
+            /**
+             * @brief 获取字符串类型参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return const char* 参数值或默认值
+             */
             const char* GetValue(const char* key, const char* default_value) const;
 
+            /**
+             * @brief 获取布尔类型参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return bool 参数值或默认值
+             */
             bool GetValue(const char* key, bool default_value) const;
 
+            /**
+             * @brief 获取字符类型参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return char 参数值或默认值
+             */
             char GetValue(const char* key, char default_value) const;
 
+            /**
+             * @brief 获取8位无符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return uint8_t 参数值或默认值
+             */
             uint8_t GetValue(const char* key, uint8_t default_value) const;
 
+            /**
+             * @brief 获取8位有符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return int8_t 参数值或默认值
+             */
             int8_t GetValue(const char* key, int8_t default_value) const;
 
+            /**
+             * @brief 获取16位无符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return uint16_t 参数值或默认值
+             */
             uint16_t GetValue(const char* key, uint16_t default_value) const;
 
+            /**
+             * @brief 获取16位有符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return int16_t 参数值或默认值
+             */
             int16_t GetValue(const char* key, int16_t default_value) const;
 
+            /**
+             * @brief 获取32位无符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return uint32_t 参数值或默认值
+             */
             uint32_t GetValue(const char* key, uint32_t default_value) const;
 
+            /**
+             * @brief 获取32位有符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return int32_t 参数值或默认值
+             */
             int32_t GetValue(const char* key, int32_t default_value) const;
 
+            /**
+             * @brief 获取64位无符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return uint64_t 参数值或默认值
+             */
             uint64_t GetValue(const char* key, uint64_t default_value) const;
 
+            /**
+             * @brief 获取64位有符号整数参数
+             * @param key 参数键名
+             * @param default_value 默认值，当参数不存在时返回
+             * @return int64_t 参数值或默认值
+             */
             int64_t GetValue(const char* key, int64_t default_value) const;
 
+            /**
+             * @brief 检查参数是否存在
+             * @param key 参数键名
+             * @return bool true表示参数存在，false表示参数不存在
+             */
             bool HasKey(const char* key) const;
 
         private:
-            atp::api::PropertiesImpl* impl_;
+            atp::api::PropertiesImpl* impl_;  // PIMPL模式：指向内部实现的指针，隐藏实现细节
         };
 
         /**
-         * @brief 错误信息
+         * @class ATPRspErrorInfo
+         * @brief 错误信息响应类
+         * 
+         * 统一的错误信息格式，用于所有API调用的错误返回。
+         * 包含错误码和错误描述信息，提供标准化的错误处理机制。
+         * 
+         * 错误判断逻辑：
+         * - error_id = 0：操作成功
+         * - error_id != 0：操作失败，通过GetErrorMsg()获取详细错误描述
          */
         class QUANT_API ATPRspErrorInfo
         {
         public:
             /**
-             * @brief 构造方法
+             * @brief 构造函数
+             * 
+             * 创建错误信息对象，默认错误码为0（成功）。
              */
             ATPRspErrorInfo() : error_id(0) {}
 
             /**
-             * @brief 析构方法
+             * @brief 虚析构函数
+             * 
+             * 确保派生类对象能够正确析构。
              */
             virtual ~ATPRspErrorInfo() = default;
 
             /**
-             * @brief 获取错误描述
+             * @brief 获取错误描述信息
+             * @return const char* 错误描述字符串，提供详细的错误说明
+             * 
+             * 当error_id不为0时，此方法返回具体的错误描述信息，
+             * 帮助开发者理解错误原因和解决方案。
              */
             virtual const char* GetErrorMsg() const = 0;
 
         public:
-            int32_t error_id;                //错误码
+            int32_t error_id;                 // 错误码：0表示成功，非0表示具体的错误类型
         };
 
         /**
-         * @brief 终端信息
+         * @class ClientFeatureCode
+         * @brief 客户端终端识别码类
+         * 
+         * 用于收集和管理客户端的硬件和软件特征信息，生成唯一的终端识别码。
+         * 这些信息用于客户端身份验证和安全控制，防止非法终端接入。
+         * 
+         * 主要功能：
+         * - 收集客户端硬件信息（CPU、硬盘、MAC地址等）
+         * - 收集网络信息（公网IP、内网IP、端口等）
+         * - 收集软件信息（终端类型、软件版本等）
+         * - 生成综合的终端识别码用于身份验证
          */
         class QUANT_API ClientFeatureCode
         {
         public:
             /**
-             * @brief 构造方法
+             * @brief 默认构造函数
+             * 
+             * 创建空的终端识别码对象。
              */
             ClientFeatureCode() = default;
 
             /**
-             * @brief 析构方法
+             * @brief 虚析构函数
+             * 
+             * 确保派生类对象能够正确析构。
              */
             virtual ~ClientFeatureCode() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
+             * 
+             * 终端识别码对象包含唯一的硬件信息，不允许拷贝。
              */
             ClientFeatureCode(const ClientFeatureCode&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
+             * 
+             * 终端识别码对象包含唯一的硬件信息，不允许赋值操作。
              */
             ClientFeatureCode& operator=(const ClientFeatureCode&) = delete;
 
             /**
-             * @brief 构建消息
+             * @brief 创建终端识别码对象（静态工厂方法）
+             * @return ClientFeatureCode* 新创建的终端识别码对象指针
+             * 
+             * 使用工厂模式创建对象，确保对象的正确初始化。
              */
             static ClientFeatureCode* NewMessage();
 
             /**
-             * @brief 销毁消息
+             * @brief 销毁终端识别码对象（静态销毁方法）
+             * @param ptr 要销毁的终端识别码对象指针
+             * 
+             * 与NewMessage()配对使用，确保对象的正确销毁和内存释放。
              */
             static void DeleteMessage(ClientFeatureCode* ptr);
 
         public:
-            //终端类型
+            // ================================================================================================
+            // 终端基本信息设置和获取接口
+            // ================================================================================================
+            
+            /**
+             * @brief 设置终端类型
+             * @param terminal_type 终端类型字符串（如"PC"、"Mobile"等）
+             */
             virtual void SetTerminalType(const char* terminal_type) = 0;
+            /**
+             * @brief 获取终端类型
+             * @return const char* 终端类型字符串
+             */
             virtual const char* GetTerminalType() const = 0;
-            //公网IP地址
+            
+            // ================================================================================================
+            // 网络信息设置和获取接口
+            // ================================================================================================
+            
+            /**
+             * @brief 设置公网IP地址
+             * @param iip 公网IP地址字符串
+             */
             virtual void SetIip(const char* iip) = 0;
+            /**
+             * @brief 获取公网IP地址
+             * @return const char* 公网IP地址字符串
+             */
             virtual const char* GetIip() const = 0;
-            //公网端口
+            
+            /**
+             * @brief 设置公网端口号
+             * @param iport 公网端口号字符串
+             */
             virtual void SetIport(const char* iport) = 0;
+            /**
+             * @brief 获取公网端口号
+             * @return const char* 公网端口号字符串
+             */
             virtual const char* GetIport() const = 0;
-            //内网IP地址
+            
+            /**
+             * @brief 设置内网IP地址
+             * @param lip 内网IP地址字符串
+             */
             virtual void SetLip(const char* lip) = 0;
+            /**
+             * @brief 获取内网IP地址
+             * @return const char* 内网IP地址字符串
+             */
             virtual const char* GetLip() const = 0;
-            //MAC地址
+            
+            /**
+             * @brief 设置MAC地址
+             * @param mac 网卡MAC地址字符串
+             */
             virtual void SetMac(const char* mac) = 0;
+            /**
+             * @brief 获取MAC地址
+             * @return const char* 网卡MAC地址字符串
+             */
             virtual const char* GetMac() const = 0;
-            //硬盘序列号
+            
+            // ================================================================================================
+            // 硬件信息设置和获取接口
+            // ================================================================================================
+            
+            /**
+             * @brief 设置硬盘序列号
+             * @param hd 硬盘序列号字符串
+             */
             virtual void SetHd(const char* hd) = 0;
+            /**
+             * @brief 获取硬盘序列号
+             * @return const char* 硬盘序列号字符串
+             */
             virtual const char* GetHd() const = 0;
-            //PC终端设备名
+            
+            /**
+             * @brief 设置PC终端设备名
+             * @param pcn PC设备名称字符串
+             */
             virtual void SetPcn(const char* pcn) = 0;
+            /**
+             * @brief 获取PC终端设备名
+             * @return const char* PC设备名称字符串
+             */
             virtual const char* GetPcn() const = 0;
-            //CPU序列号
+            
+            /**
+             * @brief 设置CPU序列号
+             * @param cpu CPU序列号字符串
+             */
             virtual void SetCpu(const char* cpu) = 0;
+            /**
+             * @brief 获取CPU序列号
+             * @return const char* CPU序列号字符串
+             */
             virtual const char* GetCpu() const = 0;
-            //硬盘分区信息
+            
+            /**
+             * @brief 设置硬盘分区信息
+             * @param pi 硬盘分区信息字符串
+             */
             virtual void SetPi(const char* pi) = 0;
+            /**
+             * @brief 获取硬盘分区信息
+             * @return const char* 硬盘分区信息字符串
+             */
             virtual const char* GetPi() const = 0;
-            //系统盘卷标号
+            
+            /**
+             * @brief 设置系统盘卷标号
+             * @param vol 系统盘卷标号字符串
+             */
             virtual void SetVol(const char* vol) = 0;
+            /**
+             * @brief 获取系统盘卷标号
+             * @return const char* 系统盘卷标号字符串
+             */
             virtual const char* GetVol() const = 0;
-            //交易终端软件名称及版本
+            
+            /**
+             * @brief 设置交易终端软件名称及版本
+             * @param tername 终端软件名称和版本信息字符串
+             */
             virtual void SetTername(const char* tername) = 0;
+            /**
+             * @brief 获取交易终端软件名称及版本
+             * @return const char* 终端软件名称和版本信息字符串
+             */
             virtual const char* GetTername() const = 0;
         };
 
         /**
-         * @brief 登录消息
+         * @class ATPLoginProperty
+         * @brief 登录属性信息类
+         * 
+         * 封装用户登录ATP交易系统所需的认证信息和配置参数。
+         * 支持两种登录模式：客户号模式和资金账号模式。
+         * 
+         * 主要功能：
+         * - 管理用户认证信息（用户ID、密码、营业部等）
+         * - 支持多种登录模式
+         * - 提供扩展字段支持自定义参数
+         * - 确保登录信息的安全传输
          */
         class QUANT_API ATPLoginProperty
         {
         public:
             /**
-             * @brief 构造方法
+             * @brief 默认构造函数
+             * 
+             * 创建空的登录属性对象。
              */
             ATPLoginProperty() = default;
 
             /**
-             * @brief 析构方法
+             * @brief 虚析构函数
+             * 
+             * 确保派生类对象能够正确析构。
              */
             virtual ~ATPLoginProperty() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
+             * 
+             * 登录属性包含敏感信息，不允许拷贝。
              */
             ATPLoginProperty(const ATPLoginProperty&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
+             * 
+             * 登录属性包含敏感信息，不允许赋值操作。
              */
             ATPLoginProperty& operator=(const ATPLoginProperty&) = delete;
 
             /**
-             * @brief 构建消息
+             * @brief 创建登录属性对象（静态工厂方法）
+             * @return ATPLoginProperty* 新创建的登录属性对象指针
+             * 
+             * 使用工厂模式创建对象，确保对象的正确初始化。
              */
             static ATPLoginProperty* NewMessage();
 
             /**
-             * @brief 销毁消息
+             * @brief 销毁登录属性对象（静态销毁方法）
+             * @param ptr 要销毁的登录属性对象指针
+             * 
+             * 与NewMessage()配对使用，确保对象的正确销毁和敏感信息清理。
              */
             static void DeleteMessage(ATPLoginProperty* ptr);
 
         public:
-            //账户ID 客户号登录模式下填客户号，资金账号登录模式下填资金账号
+            /**
+             * @brief 设置用户ID
+             * @param user_id 用户标识符
+             * 
+             * 根据登录模式的不同：
+             * - 客户号登录模式：填入客户号
+             * - 资金账号登录模式：填入资金账号
+             */
             virtual void SetUserId(const char* user_id) = 0;
+            /**
+             * @brief 获取用户ID
+             * @return const char* 用户标识符字符串
+             */
             virtual const char* GetUserId() const = 0;
-            //营业部ID
+            
+            /**
+             * @brief 设置营业部ID
+             * @param branch_id 营业部标识符
+             * 
+             * 用于标识用户所属的营业部，影响业务权限和资金清算。
+             */
             virtual void SetBranchId(const char* branch_id) = 0;
+            /**
+             * @brief 获取营业部ID
+             * @return const char* 营业部标识符字符串
+             */
             virtual const char* GetBranchId() const = 0;
-            //客户密码
+            
+            /**
+             * @brief 设置客户密码
+             * @param password 客户交易密码
+             * 
+             * 用于用户身份验证，建议使用加密传输。
+             */
             virtual void SetPassword(const char* password) = 0;
+            /**
+             * @brief 获取客户密码
+             * @return const char* 客户交易密码字符串
+             */
             virtual const char* GetPassword() const = 0;
-            //登录模式
+            
+            /**
+             * @brief 设置登录模式
+             * @param login_mode 登录模式标识
+             * 
+             * 支持的登录模式：
+             * - kCustIDMode(1)：客户号登录模式
+             * - kFundAccountIDMode(2)：资金账号登录模式
+             */
             virtual void SetLoginMode(uint8_t login_mode) = 0;
+            /**
+             * @brief 获取登录模式
+             * @return uint8_t 登录模式标识
+             */
             virtual uint8_t GetLoginMode() const = 0;
-            //扩展字段
+            
+            /**
+             * @brief 设置扩展数据字段
+             * @param extra_data 扩展数据字符串
+             * 
+             * 用于传递自定义的登录参数或附加信息。
+             */
             virtual void SetExtraData(const char* extra_data) = 0;
+            /**
+             * @brief 获取扩展数据字段
+             * @return const char* 扩展数据字符串
+             */
             virtual const char* GetExtraData() const = 0;
         };
 
         /**
-         * @brief 交易用户信息
+         * @class ATPCustomerInfo
+         * @brief 交易用户信息类
+         * 
+         * 封装登录成功后返回的客户完整信息，包括客户的所有资金账户、
+         * 证券账户以及对应的市场权限和分区信息。
+         * 
+         * 数据结构：
+         * - 客户号（唯一标识）
+         * - 资金账户数组（一个客户可能有多个资金账户）
+         * - 每个资金账户下的证券账户数组（支持多市场交易）
+         * - 每个证券账户的市场权限和分区信息
+         * 
+         * 主要用途：
+         * - 获取客户的完整账户体系信息
+         * - 确定客户的交易权限和可交易市场
+         * - 为后续交易操作提供账户选择依据
          */
         class QUANT_API ATPCustomerInfo
         {
         public:
             /**
-             * @brief 构造函数
+             * @brief 默认构造函数
+             * 
+             * 创建空的客户信息对象。
              */
             ATPCustomerInfo() = default;
 
             /**
-             * @brief 析构函数
+             * @brief 虚析构函数
+             * 
+             * 确保派生类对象能够正确析构。
              */
             virtual ~ATPCustomerInfo() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
+             * 
+             * 客户信息包含完整的账户体系，不允许拷贝。
              */
             ATPCustomerInfo(const ATPCustomerInfo&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
+             * 
+             * 客户信息包含完整的账户体系，不允许赋值操作。
              */
             ATPCustomerInfo& operator=(const ATPCustomerInfo&) = delete;
 
         public:
-            //客户号
+            /**
+             * @brief 获取客户号
+             * @return const char* 客户号字符串，客户的唯一标识符
+             */
             virtual const char* GetCustId() const = 0;
-            //是否为多分区账号
+            
+            /**
+             * @brief 获取是否为多分区账号标志
+             * @return uint8_t 多分区标志，1表示多分区账号，0表示单分区账号
+             * 
+             * 多分区账号可以在不同的交易分区进行交易，提高交易并发性能。
+             */
             virtual uint8_t GetIsMultiPartitions() const = 0;
-            //资金账号重复组大小
+            
+            /**
+             * @brief 获取资金账户数组大小
+             * @return uint32_t 资金账户的数量
+             * 
+             * 一个客户可能拥有多个资金账户，用于不同的业务类型。
+             */
             virtual uint32_t FundAccountArraySize() const = 0;
-            //资金账号
+            
+            /**
+             * @brief 获取指定索引的资金账户ID
+             * @param index 资金账户数组索引
+             * @return const char* 资金账户ID字符串
+             */
             virtual const char* FundAccountArray_GetFundAccountId(uint32_t index) const = 0;
-            //营业部ID
+            
+            /**
+             * @brief 获取指定资金账户对应的营业部ID
+             * @param index 资金账户数组索引
+             * @return const char* 营业部ID字符串
+             */
             virtual const char* FundAccountArray_GetBranchId(uint32_t index) const = 0;
-            //证券账号重复组大小
+            
+            /**
+             * @brief 获取指定资金账户下的证券账户数组大小
+             * @param index 资金账户数组索引
+             * @return uint32_t 该资金账户下证券账户的数量
+             * 
+             * 一个资金账户可能对应多个证券账户，用于不同市场的交易。
+             */
             virtual uint32_t FundAccountArray_AccountArraySize(uint32_t index) const = 0;
-            //证券账号
+            
+            /**
+             * @brief 获取指定的证券账户ID
+             * @param index1 资金账户数组索引
+             * @param index2 证券账户数组索引
+             * @return const char* 证券账户ID字符串
+             */
             virtual const char* FundAccountArray_AccountArray_GetAccountId(uint32_t index1, uint32_t index2) const = 0;
-            //市场代码
+            
+            /**
+             * @brief 获取指定证券账户对应的市场代码
+             * @param index1 资金账户数组索引
+             * @param index2 证券账户数组索引
+             * @return uint16_t 市场代码（如101-上海，102-深圳）
+             */
             virtual uint16_t FundAccountArray_AccountArray_GetMarketId(uint32_t index1, uint32_t index2) const = 0;
-            //账户角色
+            
+            /**
+             * @brief 获取指定证券账户的角色
+             * @param index1 资金账户数组索引
+             * @param index2 证券账户数组索引
+             * @return uint8_t 账户角色标识
+             */
             virtual uint8_t FundAccountArray_AccountArray_GetAccountRole(uint32_t index1, uint32_t index2) const = 0;
-            //所属分区号
+            
+            /**
+             * @brief 获取指定证券账户所属的分区号
+             * @param index1 资金账户数组索引
+             * @param index2 证券账户数组索引
+             * @return uint8_t 分区号，用于确定交易路由
+             */
             virtual uint8_t FundAccountArray_AccountArray_GetPartitionNo(uint32_t index1, uint32_t index2) const = 0;
         };
 
         /**
-         * @brief 连接信息
+         * @class ATPConnectionInfo
+         * @brief 连接信息类
+         * 
+         * 封装ATP量化API的连接状态和配置信息，提供连接相关的状态查询功能。
+         * 主要用于监控连接状态和获取连接相关的配置信息。
+         * 
+         * 主要功能：
+         * - 获取API实例的唯一标识
+         * - 查询多通道推送的订阅状态
+         * - 提供连接状态的诊断信息
          */
         class QUANT_API ATPConnectionInfo
         {
         public:
             /**
-             * @brief 构造函数
+             * @brief 默认构造函数
+             * 
+             * 创建空的连接信息对象。
              */
             ATPConnectionInfo() = default;
 
             /**
-             * @brief 析构函数
+             * @brief 虚析构函数
+             * 
+             * 确保派生类对象能够正确析构。
              */
             virtual ~ATPConnectionInfo() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
+             * 
+             * 连接信息包含实例特定的状态，不允许拷贝。
              */
             ATPConnectionInfo(const ATPConnectionInfo&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
+             * 
+             * 连接信息包含实例特定的状态，不允许赋值操作。
              */
             ATPConnectionInfo& operator=(const ATPConnectionInfo&) = delete;
 
         public:
-            //实例ID
+            /**
+             * @brief 获取API实例ID
+             * @return int32_t API实例的唯一标识符
+             * 
+             * 当系统中存在多个ATPQuantAPI实例时，通过实例ID可以区分不同的实例，
+             * 便于日志记录和问题定位。
+             */
             virtual int32_t GetInstanceId() const = 0;
-            //多通道主推消息订阅结果
+            
+            /**
+             * @brief 获取多通道主推消息订阅结果
+             * @return uint8_t 订阅结果标识
+             * 
+             * 返回多通道推送消息的订阅状态：
+             * - 0: 未订阅或订阅失败
+             * - 1: 订阅成功
+             * - 其他值: 特定的订阅状态
+             */
             virtual uint8_t GetMultiChannelResult() const = 0;
         };
 
 
 
+        // ================================================================================================
+        // 交易消息类定义区域
+        // ================================================================================================
+        
         /**
-         * @brief 现货交易委托消息
+         * @class ATPReqCashAuctionOrderMsg
+         * @brief 现货集中竞价委托请求消息类
+         * 
+         * 用于封装现货交易的委托请求信息，支持股票、基金、债券等现货品种的买卖。
+         * 包含完整的委托信息：账户信息、证券信息、价格数量、订单类型等。
+         * 
+         * 主要功能：
+         * - 封装现货买卖委托的所有必要信息
+         * - 支持多种订单类型（限价、市价等）
+         * - 提供消息序列化和反序列化功能
+         * - 支持批量委托的批次号管理
+         * 
+         * 使用流程：
+         * 1. 调用NewMessage()创建消息对象
+         * 2. 设置各种委托参数（账户、证券、价格等）
+         * 3. 调用ATPQuantAPI::ReqCashAuctionOrder()发送委托
+         * 4. 通过OnRspCashAuctionOrder()接收委托响应
+         * 5. 调用DeleteMessage()销毁消息对象
          */
         class QUANT_API ATPReqCashAuctionOrderMsg
         {
         public:
             /**
-             * @brief 构造函数
+             * @brief 默认构造函数
+             * 
+             * 创建空的现货委托请求消息对象。
              */
             ATPReqCashAuctionOrderMsg() = default;
 
             /**
-             * @brief 析构函数
+             * @brief 虚析构函数
+             * 
+             * 确保派生类对象能够正确析构。
              */
             virtual ~ATPReqCashAuctionOrderMsg() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
+             * 
+             * 委托消息包含特定的交易信息，不允许拷贝。
              */
             ATPReqCashAuctionOrderMsg(const ATPReqCashAuctionOrderMsg&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
+             * 
+             * 委托消息包含特定的交易信息，不允许赋值操作。
              */
             ATPReqCashAuctionOrderMsg& operator=(const ATPReqCashAuctionOrderMsg&) = delete;
+            
             /**
-             * @brief 构建消息
-             * @param business_type 业务类型
+             * @brief 创建现货委托消息对象（静态工厂方法）
+             * @param business_type 业务类型，指定具体的交易业务
+             * @return ATPReqCashAuctionOrderMsg* 新创建的委托消息对象指针
+             * 
+             * 根据不同的业务类型创建对应的委托消息对象，
+             * 不同业务类型可能有不同的字段要求。
              */
             static ATPReqCashAuctionOrderMsg* NewMessage(ATPBusinessTypeType business_type);
 
             /**
-             * @brief 销毁消息
-             * @param msg_ptr 待销毁的消息指针
+             * @brief 销毁现货委托消息对象（静态销毁方法）
+             * @param msg_ptr 要销毁的委托消息对象指针
+             * 
+             * 与NewMessage()配对使用，确保对象的正确销毁和内存释放。
              */
             static void DeleteMessage(ATPReqCashAuctionOrderMsg* msg_ptr);
 
             /**
-             * @brief 将消息结构编码为二进制数据流
-             * @return Buffer 二进制数据流结构
+             * @brief 将消息对象编码为二进制数据流
+             * @return Buffer 编码后的二进制数据流
+             * 
+             * 将委托消息对象序列化为二进制格式，用于网络传输。
+             * 编码后的数据可以通过网络发送到交易系统。
              */
             virtual Buffer Encode() = 0;
 
             /**
-             * @brief 将二进制数据流解码为消息结构
-             * @param[in] const Buffer& 二进制数据流结构
-             * @return bool 解码是否成功
+             * @brief 将二进制数据流解码为消息对象
+             * @param[in] buffer 二进制数据流
+             * @return bool 解码是否成功，true表示成功，false表示失败
+             * 
+             * 将从网络接收的二进制数据反序列化为消息对象，
+             * 用于解析服务器返回的响应数据。
              */
-            virtual bool Decode(const Buffer&) = 0;
+            virtual bool Decode(const Buffer& buffer) = 0;
 
         public:
-            //客户号ID 
-            virtual void SetCustId(const char*) = 0;
+            // ================================================================================================
+            // 账户信息字段设置和获取接口
+            // ================================================================================================
+            
+            /**
+             * @brief 设置客户号ID
+             * @param cust_id 客户号字符串，客户的唯一标识符
+             */
+            virtual void SetCustId(const char* cust_id) = 0;
+            /**
+             * @brief 获取客户号ID
+             * @return const char* 客户号字符串
+             */
             virtual const char* GetCustId() const = 0;
-            //资金账号ID 
-            virtual void SetFundAccountId(const char*) = 0;
+            
+            /**
+             * @brief 设置资金账号ID
+             * @param fund_account_id 资金账号字符串
+             */
+            virtual void SetFundAccountId(const char* fund_account_id) = 0;
+            /**
+             * @brief 获取资金账号ID
+             * @return const char* 资金账号字符串
+             */
             virtual const char* GetFundAccountId() const = 0;
-            //营业部ID 
-            virtual void SetBranchId(const char*) = 0;
+            
+            /**
+             * @brief 设置营业部ID
+             * @param branch_id 营业部标识符字符串
+             */
+            virtual void SetBranchId(const char* branch_id) = 0;
+            /**
+             * @brief 获取营业部ID
+             * @return const char* 营业部标识符字符串
+             */
             virtual const char* GetBranchId() const = 0;
-            //证券账户ID 
-            virtual void SetAccountId(const char*) = 0;
+            
+            /**
+             * @brief 设置证券账户ID
+             * @param account_id 证券账户字符串
+             */
+            virtual void SetAccountId(const char* account_id) = 0;
+            /**
+             * @brief 获取证券账户ID
+             * @return const char* 证券账户字符串
+             */
             virtual const char* GetAccountId() const = 0;
-            //客户密码 
-            virtual void SetPassword(const char*) = 0;
+            
+            /**
+             * @brief 设置客户交易密码
+             * @param password 客户交易密码字符串
+             */
+            virtual void SetPassword(const char* password) = 0;
+            /**
+             * @brief 获取客户交易密码
+             * @return const char* 客户交易密码字符串
+             */
             virtual const char* GetPassword() const = 0;
-            //证券代码 （当为配股业务时，该字段表示配售权证代码）
-            virtual void SetSecurityId(const char*) = 0;
+            
+            // ================================================================================================
+            // 证券和交易信息字段设置和获取接口
+            // ================================================================================================
+            
+            /**
+             * @brief 设置证券代码
+             * @param security_id 证券代码字符串（配股业务时为配售权证代码）
+             */
+            virtual void SetSecurityId(const char* security_id) = 0;
+            /**
+             * @brief 获取证券代码
+             * @return const char* 证券代码字符串
+             */
             virtual const char* GetSecurityId() const = 0;
-            //市场代码 
-            virtual void SetMarketId(uint16_t) = 0;
+            
+            /**
+             * @brief 设置市场代码
+             * @param market_id 市场代码（101-上海，102-深圳，103-香港，104-北京）
+             */
+            virtual void SetMarketId(uint16_t market_id) = 0;
+            /**
+             * @brief 获取市场代码
+             * @return uint16_t 市场代码
+             */
             virtual uint16_t GetMarketId() const = 0;
-            //买卖方向 
-            virtual void SetSide(char) = 0;
+            
+            /**
+             * @brief 设置买卖方向
+             * @param side 买卖方向字符（'1'-买入，'2'-卖出）
+             */
+            virtual void SetSide(char side) = 0;
+            /**
+             * @brief 获取买卖方向
+             * @return char 买卖方向字符
+             */
             virtual char GetSide() const = 0;
-            //申报数量N15(2) 
-            virtual void SetOrderQty(double) = 0;
+            
+            /**
+             * @brief 设置申报数量
+             * @param order_qty 申报数量，精度N15(2)（股票为股，基金为份，债券为张）
+             */
+            virtual void SetOrderQty(double order_qty) = 0;
+            /**
+             * @brief 获取申报数量
+             * @return double 申报数量
+             */
             virtual double GetOrderQty() const = 0;
-            //委托价格N13(4) 
-            virtual void SetPrice(double) = 0;
+            
+            /**
+             * @brief 设置委托价格
+             * @param price 委托价格，精度N13(4)（市价单可填0）
+             */
+            virtual void SetPrice(double price) = 0;
+            /**
+             * @brief 获取委托价格
+             * @return double 委托价格
+             */
             virtual double GetPrice() const = 0;
-            //订单类型 
-            virtual void SetOrderType(char) = 0;
+            
+            /**
+             * @brief 设置订单类型
+             * @param order_type 订单类型字符（'a'-限价，'b'-本方最优等）
+             */
+            virtual void SetOrderType(char order_type) = 0;
+            /**
+             * @brief 获取订单类型
+             * @return char 订单类型字符
+             */
             virtual char GetOrderType() const = 0;
-            //客户自定义委托批号(0为系统保留值，不允许使用)(ATP3.2.3开始支持，且仅支持现货集中竞价)
-            virtual void SetBatchClOrdNo(uint64_t) = 0;
+            
+            /**
+             * @brief 设置客户自定义委托批号
+             * @param batch_cl_ord_no 委托批号（0为系统保留值，不允许使用）
+             * 
+             * @note ATP3.2.3版本开始支持，且仅支持现货集中竞价业务
+             * 用于批量管理订单，支持按批次号进行批量撤单等操作。
+             */
+            virtual void SetBatchClOrdNo(uint64_t batch_cl_ord_no) = 0;
+            /**
+             * @brief 获取客户自定义委托批号
+             * @return uint64_t 委托批号
+             */
             virtual uint64_t GetBatchClOrdNo() const = 0;
         };
         /**
@@ -2145,115 +2816,228 @@ namespace atp
             //单账户净赎回上限N18(2)
             virtual double GetNetRedemptionLimitPerUser() const = 0;
         };
+        
         /**
-         * @brief ETF成分股信息查询消息
+         * @class ATPReqExtQueryETFComponentInfoMsg
+         * @brief ETF成分股信息查询请求消息类
+         * 
+         * 用于查询ETF基金的成分股详细信息，包括成分股代码、权重、现金替代标志等。
+         * 这些信息是进行ETF申购赎回操作的重要依据。
+         * 
+         * 主要功能：
+         * - 查询指定ETF的所有成分股信息
+         * - 支持按成分股代码过滤查询
+         * - 获取现金替代相关参数
+         * - 支持分页查询大量成分股数据
          */
         class QUANT_API ATPReqExtQueryETFComponentInfoMsg
         {
         public:
             /**
-             * @brief 构造函数
+             * @brief 默认构造函数
              */
             ATPReqExtQueryETFComponentInfoMsg() = default;
 
             /**
-             * @brief 析构函数
+             * @brief 虚析构函数
              */
             virtual ~ATPReqExtQueryETFComponentInfoMsg() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
              */
             ATPReqExtQueryETFComponentInfoMsg(const ATPReqExtQueryETFComponentInfoMsg&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
              */
             ATPReqExtQueryETFComponentInfoMsg& operator=(const ATPReqExtQueryETFComponentInfoMsg&) = delete;
+            
             /**
-             * @brief 构建消息
+             * @brief 创建ETF成分股查询消息对象（静态工厂方法）
+             * @return ATPReqExtQueryETFComponentInfoMsg* 新创建的查询消息对象指针
              */
             static ATPReqExtQueryETFComponentInfoMsg* NewMessage();
 
             /**
-             * @brief 销毁消息
-             * @param msg_ptr 待销毁的消息指针
+             * @brief 销毁ETF成分股查询消息对象（静态销毁方法）
+             * @param msg_ptr 要销毁的查询消息对象指针
              */
             static void DeleteMessage(ATPReqExtQueryETFComponentInfoMsg* msg_ptr);
 
         public:
-            //市场代码
-            virtual void SetMarketId(uint16_t) = 0;
+            /**
+             * @brief 设置市场代码
+             * @param market_id 市场代码，0表示查询所有市场
+             */
+            virtual void SetMarketId(uint16_t market_id) = 0;
+            /**
+             * @brief 获取市场代码
+             * @return uint16_t 市场代码
+             */
             virtual uint16_t GetMarketId() const = 0;
-            //证券代码
-            virtual void SetSecurityId(const char*) = 0;
+            
+            /**
+             * @brief 设置ETF证券代码
+             * @param security_id ETF代码字符串，空字符串表示查询所有ETF
+             */
+            virtual void SetSecurityId(const char* security_id) = 0;
+            /**
+             * @brief 获取ETF证券代码
+             * @return const char* ETF代码字符串
+             */
             virtual const char* GetSecurityId() const = 0;
-            //成分股代码（默认值为空，表示查所有）
-            virtual void SetComponentSecurityId(const char*) = 0;
+            
+            /**
+             * @brief 设置成分股代码过滤条件
+             * @param component_security_id 成分股代码，空字符串表示查询所有成分股
+             */
+            virtual void SetComponentSecurityId(const char* component_security_id) = 0;
+            /**
+             * @brief 获取成分股代码过滤条件
+             * @return const char* 成分股代码字符串
+             */
             virtual const char* GetComponentSecurityId() const = 0;
-            //查询返回数量，0表示按能返回的最大数量返回，具体数量请咨询券商
-            virtual void SetReturnNum(int64_t) = 0;
+            
+            /**
+             * @brief 设置查询返回数量限制
+             * @param return_num 返回数量，0表示按最大数量返回
+             */
+            virtual void SetReturnNum(int64_t return_num) = 0;
+            /**
+             * @brief 获取查询返回数量限制
+             * @return int64_t 返回数量限制
+             */
             virtual int64_t GetReturnNum() const = 0;
-            //申赎类型（默认值为1，表示查普通申赎）
-            virtual void SetPrType(uint8_t) = 0;
+            
+            /**
+             * @brief 设置申赎类型过滤条件
+             * @param pr_type 申赎类型（1-普通申赎，2-实物申赎）
+             */
+            virtual void SetPrType(uint8_t pr_type) = 0;
+            /**
+             * @brief 获取申赎类型过滤条件
+             * @return uint8_t 申赎类型
+             */
             virtual uint8_t GetPrType() const = 0;
         };
+        
         /**
-         * @brief ETF成分股信息查询结果
+         * @class ATPRspExtQueryResultETFComponentInfoMsg
+         * @brief ETF成分股信息查询结果消息类
+         * 
+         * 封装ETF成分股查询的返回结果，包含成分股的详细信息和现金替代参数。
+         * 这些信息用于ETF申购赎回时的成分股处理和现金替代计算。
+         * 
+         * 主要信息：
+         * - 成分股基本信息（代码、名称、市场）
+         * - 现金替代标志和比例
+         * - 成分股在ETF中的权重和数量
+         * - 申购赎回时的现金替代金额
          */
         class QUANT_API ATPRspExtQueryResultETFComponentInfoMsg
         {
         public:
             /**
-             * @brief 构造函数
+             * @brief 默认构造函数
              */
             ATPRspExtQueryResultETFComponentInfoMsg() = default;
 
             /**
-             * @brief 析构函数
+             * @brief 虚析构函数
              */
             virtual ~ATPRspExtQueryResultETFComponentInfoMsg() = default;
 
             /**
-             * @brief 禁用拷贝构造
+             * @brief 禁用拷贝构造函数
              */
             ATPRspExtQueryResultETFComponentInfoMsg(const ATPRspExtQueryResultETFComponentInfoMsg&) = delete;
 
             /**
-             * @brief 禁用赋值构造
+             * @brief 禁用赋值操作符
              */
             ATPRspExtQueryResultETFComponentInfoMsg& operator=(const ATPRspExtQueryResultETFComponentInfoMsg&) = delete;
+            
         public:
-            //市场代码
+            /**
+             * @brief 获取ETF所属市场代码
+             * @return uint16_t 市场代码
+             */
             virtual uint16_t GetMarketId() const = 0;
-            //ETF代码
+            
+            /**
+             * @brief 获取ETF代码
+             * @return const char* ETF证券代码字符串
+             */
             virtual const char* GetSecurityId() const = 0;
-            //证券简称
+            
+            /**
+             * @brief 获取ETF证券简称
+             * @return const char* ETF证券简称字符串
+             */
             virtual const char* GetSecuritySymbol() const = 0;
-            //成分股市场代码
+            
+            /**
+             * @brief 获取成分股所属市场代码
+             * @return uint16_t 成分股市场代码
+             */
             virtual uint16_t GetComponentMarketId() const = 0;
-            //成分股代码
+            
+            /**
+             * @brief 获取成分股代码
+             * @return const char* 成分股证券代码字符串
+             */
             virtual const char* GetComponentSecurityId() const = 0;
-            //成分股简称
+            
+            /**
+             * @brief 获取成分股简称
+             * @return const char* 成分股证券简称字符串
+             */
             virtual const char* GetComponentSecuritySymbol() const = 0;
-            //现金替代标志
+            
+            /**
+             * @brief 获取现金替代标志
+             * @return uint8_t 现金替代标志（0-禁止，1-允许，2-必须，3-退补）
+             */
             virtual uint8_t GetSubstituteFlag() const = 0;
-            //申购溢价比例N7(5)
+            
+            /**
+             * @brief 获取申购溢价比例
+             * @return double 申购时的溢价比例，精度N7(5)
+             */
             virtual double GetPremiumRatio() const = 0;
-            //赎回折价比例N7(5)
+            
+            /**
+             * @brief 获取赎回折价比例
+             * @return double 赎回时的折价比例，精度N7(5)
+             */
             virtual double GetRedemptionPremiumRatio() const = 0;
-            //成分股数量，最小单位度量（股，张）
+            
+            /**
+             * @brief 获取成分股在ETF中的数量
+             * @return double 成分股数量，最小单位度量（股或张）
+             */
             virtual double GetComponentShareQty() const = 0;
-            //申购现金替代金额N18(4)
+            
+            /**
+             * @brief 获取申购现金替代金额
+             * @return double 申购时的现金替代金额，精度N18(4)
+             */
             virtual double GetPurchaseCashSubstitute() const = 0;
-            //赎回现金替代金额N18(4)
+            
+            /**
+             * @brief 获取赎回现金替代金额
+             * @return double 赎回时的现金替代金额，精度N18(4)
+             */
             virtual double GetRedemptionCashSubstitute() const = 0;
-            //申赎类型
+            
+            /**
+             * @brief 获取申赎类型
+             * @return uint8_t 申赎类型（1-普通申赎，2-实物申赎）
+             */
             virtual uint8_t GetPrType() const = 0;
         };
-   } //namespace quant_api
-} //namespace atp
+   } //namespace quant_api    // 结束量化API命名空间
+} //namespace atp            // 结束ATP命名空间
 
-
-
-#endif //  ATP_QUANT_MSG_H_
+#endif //  ATP_QUANT_MSG_H_    // 结束头文件保护

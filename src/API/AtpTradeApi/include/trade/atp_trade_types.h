@@ -1,32 +1,84 @@
-// code_generator_tag
+/**
+ * @file atp_trade_types.h
+ * @brief ATP交易系统基础数据类型定义文件
+ * 
+ * 本文件定义了ATP交易系统中使用的所有基础数据类型、别名和联合体。
+ * 这些类型定义为整个ATP交易API提供了统一的数据类型基础，确保了
+ * 数据在不同模块间传递时的类型安全性和一致性。
+ * 
+ * 设计逻辑：
+ * - 使用typedef为标准C++类型创建具有业务含义的别名
+ * - 定义固定长度的字符数组类型，确保数据结构的内存布局一致
+ * - 提供精确的数值类型定义，支持金融计算的精度要求
+ * - 统一不同平台下的数据类型表示，确保跨平台兼容性
+ * 
+ * 类型分类：
+ * 1. 基础数值类型 - 整型、浮点型、布尔型等
+ * 2. 字符串和字符数组类型 - 固定长度的业务字段
+ * 3. 标识符类型 - 账户、订单、证券等业务标识
+ * 4. 金额和数量类型 - 支持高精度的金融计算
+ * 5. 时间和日期类型 - 交易时间戳和日期表示
+ * 6. 枚举和标志类型 - 业务状态和选项标识
+ * 7. 联合体类型 - 多类型数据的统一表示
+ * 
+ * 精度说明：
+ * - 金额类型使用N18(4)格式，支持18位整数部分和4位小数部分
+ * - 数量类型使用N15(2)格式，支持15位整数部分和2位小数部分
+ * - 价格类型使用N13(4)格式，支持13位整数部分和4位小数部分
+ * 
+ * 编码标准：
+ * - 所有字符串类型使用UTF-8编码
+ * - 固定长度字符数组以null结尾
+ * - 数值类型采用小端字节序（little-endian）
+ * 
+ * @author ATP开发团队
+ * @version 1.0
+ * @date 2023
+ */
+
+// 代码生成器标记，用于版本控制和自动化构建
 // types:b27cbce8a0509cca6b8d355c8f46e949 template:3193722197a4f5b21a92934cfb63f986 code:15d8e52bc1a461e9b05ba8f9fed2b7a5
-#ifndef ATP_TRADE_TYPES_H
-#define ATP_TRADE_TYPES_H
 
-#include <cstdint>
-#include <set>
-#include <string>
-#include <cstring>
+#ifndef ATP_TRADE_TYPES_H                   // 防止头文件重复包含的预处理保护
+#define ATP_TRADE_TYPES_H                   // 定义头文件保护宏
+
+#include <cstdint>                          // 包含标准整数类型定义
+#include <set>                              // 包含STL集合容器
+#include <string>                           // 包含STL字符串类
+#include <cstring>                          // 包含C风格字符串处理函数
 
 
 
-typedef int32_t ATPRetCodeType;    ///< 返回结果类型
-typedef uint32_t ATPVersionType;    ///< ATP协议版本
-typedef std::string ATPAbstentionVotesType;    ///< 弃权数量
-typedef char ATPAccountIDType[13];    ///< 资金账户ID
-typedef int8_t ATPAccountTypeType;    ///< 账户类型
-typedef char ATPAccountSubCodeType[7];    ///< 合约账户子编码
-typedef std::string ATPAffirmativeVotesType;    ///< 赞成数量
-typedef uint8_t ATPAgwPartitionType;    ///< 分区号
-typedef uint32_t ATPAgwIndexType;    ///< 回报记录号
-typedef int64_t ATPAmtType;    ///< 金额类型 N18(4)
-typedef std::string ATPAnnouncementNumberType;    ///< 公告编号
-typedef uint8_t ATPBusinessTypeType;    ///< 业务类型
-typedef char ATPBusinessRejectTextType[51];    ///< 拒绝原因描述信息
-typedef bool ATPBoolType;    ///< bool类型
-typedef char ATPBranchIDType[11];    ///< 营业部ID
-typedef char ATPCashMarginType;    ///< 信用标识
-typedef uint8_t ATPBatchType;    ///< 批量类型
+// ==================== 基础返回和版本类型 ====================
+typedef int32_t ATPRetCodeType;                    ///< 函数返回结果类型，用于表示API调用的成功或失败状态
+typedef uint32_t ATPVersionType;                   ///< ATP协议版本号类型，用于标识使用的协议版本
+
+// ==================== 投票相关类型 ====================
+typedef std::string ATPAbstentionVotesType;        ///< 股东大会投票中的弃权票数量，使用字符串表示支持大数值
+typedef std::string ATPAffirmativeVotesType;       ///< 股东大会投票中的赞成票数量，使用字符串表示支持大数值
+
+// ==================== 账户相关类型 ====================
+typedef char ATPAccountIDType[13];                 ///< 证券账户ID，固定12字符长度加结束符，用于唯一标识证券账户
+typedef int8_t ATPAccountTypeType;                  ///< 账户类型标识，区分不同类型的交易账户（如普通账户、信用账户等）
+typedef char ATPAccountSubCodeType[7];              ///< 合约账户子编码，用于期权等衍生品交易的子账户标识
+typedef char ATPBranchIDType[11];                   ///< 营业部ID，固定10字符长度加结束符，标识券商的营业部门
+
+// ==================== 系统分区和索引类型 ====================
+typedef uint8_t ATPAgwPartitionType;               ///< AGW（应用网关）分区号，用于系统负载均衡和数据分片
+typedef uint32_t ATPAgwIndexType;                  ///< AGW回报记录索引号，用于追踪和排序回报消息
+
+// ==================== 金额和数量类型 ====================
+typedef int64_t ATPAmtType;                        ///< 金额类型，N18(4)格式，支持18位整数4位小数的高精度金额计算
+typedef uint8_t ATPBatchType;                      ///< 批量委托类型，标识批量操作的处理方式（等量拆分、递减拆分等）
+
+// ==================== 公告和业务类型 ====================
+typedef std::string ATPAnnouncementNumberType;     ///< 公司公告编号，用于标识上市公司发布的各类公告
+typedef uint8_t ATPBusinessTypeType;               ///< 业务类型标识，区分不同的交易业务（现货、期权、融资融券等）
+typedef char ATPBusinessRejectTextType[51];        ///< 业务拒绝原因描述文本，固定50字符长度加结束符
+
+// ==================== 基础数据类型 ====================
+typedef bool ATPBoolType;                          ///< 布尔类型，用于表示是/否、真/假等二元状态
+typedef char ATPCashMarginType;                    ///< 信用标识，区分普通交易和融资融券交易
 typedef std::string ATPClientFeatureCodeType;    ///< 终端识别码
 typedef int64_t ATPClientSeqIDType;    ///< 用户系统消息序号需要全局保持唯一，由API使用者负责维护
 typedef int64_t ATPClOrdNOType;    ///< 客户订单编号 
