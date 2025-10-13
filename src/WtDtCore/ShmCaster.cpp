@@ -414,7 +414,7 @@ void ShmCaster::broadcast(WTSTransData* curTrans)
 	// 步骤3：设置数据类型为3（逐笔成交）
 	_queue->_items[realIdx]._type = 3;
 	
-	// 步骤4：拷贝逐笔成交数据
+	// 步骤4：拷贝逐笔成交数据s
 	// 目标：union中的_trans成员
 	memcpy(&_queue->_items[realIdx]._trans, &curTrans->getTransStruct(), sizeof(WTSTransStruct));
 	
