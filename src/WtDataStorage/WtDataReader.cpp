@@ -100,6 +100,7 @@ inline void pipe_reader_log(IDataReaderSink* sink, WTSLogLevel ll, const char* f
 	if (sink == NULL)                                             // 如果日志回调接口为空
 		return;                                                   // 直接返回
 
+	// 例子：pipe_reader_log(sink, LL_INFO, "WtDataReader initialized, rt dir is {}, hist dir is {}, adjust_flag is {}", _rt_dir, _his_dir, _adjust_flag);
 	const char* buffer = fmtutil::format(format, args...);        // 格式化字符串
 
 	sink->reader_log(ll, buffer);                                // 调用日志回调接口输出日志
