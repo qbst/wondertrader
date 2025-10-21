@@ -523,7 +523,8 @@ WTSTickSlice* WtDataReader::readTickSlice(const char* stdCode, uint32_t count, u
 		auto it = _his_tick_map.find(key);                        // 查找历史Tick数据块
 		if(it == _his_tick_map.end())                             // 如果未找到
 		{
-			std::stringstream ss;                                 // 字符串流
+			std::stringstream ss;     
+			// 构建历史tick数据文件路径 {_his_dir}ticks/{cInfo._exchg}/{endTDate}/{curCode}.dsb
 			ss << _his_dir << "ticks/" << cInfo._exchg << "/" << endTDate << "/" << curCode << ".dsb";  // 构建文件路径
 			std::string filename = ss.str();                      // 获取文件名
 			if (!StdFile::exists(filename.c_str()))               // 如果文件不存在
