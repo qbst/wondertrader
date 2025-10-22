@@ -1160,7 +1160,8 @@ bool WtDataReader::cacheIntegratedBars(void* codeInfo, const std::string& key, c
 		 *	但是上层会调用一次loadFinalHisBars，这里再调用loadRawHisBars就冗余了，所以直接跳过
 		 */
 
-		std::stringstream ss;                                     // 字符串流
+		std::stringstream ss;  
+		// {_his_dir}{pname: min1/min5/day}/{cInfo->_exchg}/{cInfo->_exchg}.{cInfo->_product}_{cInfo->_ruletag: HOT/2ND}{cInfo->_exright: -/+}.dsb                                   // 字符串流
 		ss << _his_dir << pname << "/" << cInfo->_exchg << "/" << cInfo->_exchg << "." << cInfo->_product << "_" << ruleTag;  // 构建主力合约文件路径
 		if (cInfo->isExright())                                   // 如果是复权合约
 			ss << (cInfo->_exright == 1 ? SUFFIX_QFQ : SUFFIX_HFQ);  // 添加复权后缀
@@ -1280,6 +1281,7 @@ bool WtDataReader::cacheIntegratedBars(void* codeInfo, const std::string& key, c
 		if (!bLoaded)                                              // 如果外部加载失败
 		{
 			std::stringstream ss;                                 // 字符串流
+			// {_his_dir}{pname: min1/min5/day}/{cInfo->_exchg}/{当前分月合约代码}.dsb                                   // 字符串流
 			ss << _his_dir << pname << "/" << cInfo->_exchg << "/" << curCode << ".dsb";  // 构建文件路径
 			std::string filename = ss.str();                      // 获取文件名
 			if (!StdFile::exists(filename.c_str()))               // 如果文件不存在
