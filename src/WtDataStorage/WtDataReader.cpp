@@ -1460,6 +1460,7 @@ bool WtDataReader::cacheAdjustedStkBars(void* codeInfo, const std::string& key, 
 		 */
 		char flag = cInfo->_exright == 1 ? SUFFIX_QFQ : SUFFIX_HFQ;  // 根据复权类型设置标志
 		std::stringstream ss;                                     // 字符串流
+		// {_his_dir}{pname: min1/min5/day}/{cInfo->_exchg}/{cInfo->_code}{cInfo->_exright: -/+}.dsb
 		ss << _his_dir << pname << "/" << cInfo->_exchg << "/" << cInfo->_code << flag << ".dsb";  // 构建复权文件路径
 		std::string filename = ss.str();                          // 获取文件名
 		if (!StdFile::exists(filename.c_str()))                   // 如果文件不存在

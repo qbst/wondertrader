@@ -1636,6 +1636,7 @@ WtDataWriter::KBlockPair* WtDataWriter::getKlineBlock(WTSContractInfo* ct, WTSKl
 	if (pBlock->_block == NULL)                                 // 如果数据块为空
 	{
 		thread_local static char path[256] = { 0 };            // 线程局部静态路径缓冲区
+		// {_base_dir}rt/{min1/min5}/{ct->getExchg()}/{ct->getCode()}.dmb
 		char * s = fmt::format_to(path, "{}rt/{}/{}/", _base_dir, subdir, ct->getExchg()); // 格式化路径
 		s[0] = '\0';                                            // 重置字符串
 		if (bAutoCreate)                                         // 如果允许自动创建
