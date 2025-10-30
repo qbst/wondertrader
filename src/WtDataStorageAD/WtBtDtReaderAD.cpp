@@ -245,8 +245,7 @@ bool WtBtDtReaderAD::read_raw_ticks(const char* exchg, const char* code, uint32_
 		std::string((const char*)&rKey, sizeof(rKey)),
 		[this, &buffer, &lKey](const ValueArray& ayKeys, const ValueArray& ayVals) {
 		if (ayVals.empty())                     // 检查查询结果是否为空
-			return;
-
+			ret
 		std::size_t cnt = ayVals.size();        // 获取数据条数
 		auto szUnit = sizeof(WTSTickStruct);    // 单个Tick结构体大小
 		buffer.resize(szUnit*cnt);              // 调整缓冲区大小
