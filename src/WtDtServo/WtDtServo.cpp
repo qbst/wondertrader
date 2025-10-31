@@ -186,8 +186,8 @@ WtUInt32 get_bars_by_range(const char* stdCode, const char* period, WtUInt64 beg
 		cbCnt(kData->size());                                                    // 调用计数回调，通知数据总条数
 
 		for (std::size_t i = 0; i < kData->get_block_counts(); i++)            // 遍历数据切片的所有数据块
-			cb(kData->get_block_addr(i), kData->get_block_size(i), i == kData->get_block_counts() - 1);  // 调用数据回调，传递每个数据块的地址、大小和是否为最后一批的标识
-
+		
+		cb(kData->get_block_addr(i), kData->get_block_size(i), i == kData->get_block_counts() - 1);  // 调用数据回调，传递每个数据块的地址、大小和是否为最后一批的标识
 		kData->release();                                                        // 释放数据切片对象
 		return reaCnt;                                                           // 返回查询到的数据条数
 	}
