@@ -179,6 +179,30 @@ bool TraderAdapter::init(const char* id, WTSVariant* params, IBaseDataMgr* bdMgr
 
 	// 这里解析流量风控参数
 	WTSVariant* cfgRisk = params->get("riskmon");		// 获取风控配置节点
+	// cfgRisk 的JSON形式例子：
+	/*
+	{
+		"active": true,
+		"policy": {
+			"default": {
+				"cancel_total_limits": 100,
+				"cancel_times_boundary": 10,
+				"cancel_stat_timespan": 60,
+				"order_total_limits": 100,
+				"order_times_boundary": 10,
+				"order_stat_timespan": 60
+			}
+			"SHFE.cu": {
+				"cancel_total_limits": 100,
+				"cancel_times_boundary": 10,
+				"cancel_stat_timespan": 60,
+				"order_total_limits": 100,
+				"order_times_boundary": 10,
+				"order_stat_timespan": 60
+			}
+		}
+	}
+	*/
 	if (cfgRisk)							// 如果存在风控配置
 	{
 		if (cfgRisk->getBoolean("active"))	// 如果风控监控已激活
@@ -307,8 +331,10 @@ bool TraderAdapter::initExt(const char* id, ITraderApi* api, IBaseDataMgr* bdMgr
 /**
  * @brief 初始化数据保存功能
  * 
- * 创建交易日志和订单日志文件，准备保存交易数据。
- * 日志文件保存在 traders/{交易通道ID}/ 目录下。
+ * 创建交易日志和订单日志文件，准备保存交易数据。包括：成交日志、订单日志、实时数据文件。
+ * 基础路径/traders/{交易通道ID}/trades.csv
+ * 基础路径/traders/{交易通道ID}/orders.csv
+ * 基础路径/traders/{交易通道ID}/rtdata.json
  */
 void TraderAdapter::initSaveData()
 {
@@ -319,7 +345,6 @@ void TraderAdapter::initSaveData()
 	ss << WtHelper::getBaseDir() << "traders/" << _id << "//";	// 构建日志文件目录路径
 	std::string folder = ss.str();
 	BoostFile::create_directories(folder.c_str());					// 创建日志目录（如果不存在）
-
 	std::string filename = folder + "trades.csv";					// 成交日志文件名
 	_trades_log.reset(new BoostFile());							// 创建成交日志文件对象
 	{
@@ -2230,10 +2255,14 @@ bool TraderAdapter::checkSelfMatch(const char* stdCode, WTSTradeInfo* tInfo)
 		const std::string& oid = it->second;						// 获取已保存的关联订单号
 		if (oid.compare(refid) != 0)								// 如果关联订单号不同
 		{
-			// 同一个成交单的关联订单ID不同，这一定是自成交了
+            // 同一个成交单号对应不同的订单号 = 自成交！
+            // 说明：同一个成交单T001，第一次推送时关联订单是O001（买单）
+            //       第二次推送时关联订单是O002（卖单）
+            //       说明O001和O002都是本账户的订单，发生了自成交
 			WTSLogger::log_dyn("trader", _id.c_str(), LL_FATAL, 
 				"[{0}] Self matching detected on {1}!!! Instructions on {1} will be forbidden!!!", _id.c_str(), stdCode);	// 记录严重错误日志
 			_self_matches.insert(stdCode);							// 将该合约加入自成交列表
+
 			return true;											// 返回true表示检测到自成交
 		}
 		else														// 如果关联订单号相同

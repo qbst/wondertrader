@@ -629,6 +629,7 @@ protected:
 	char	m_strExchg[MAX_EXCHANGE_LENGTH];	// 交易所代码字符串
 	char	m_strCode[MAX_INSTRUMENT_LENGTH];	// 合约代码字符串
 	char	m_strTradeID[64] = { 0 };			// 成交编号字符串
+	/* 本账户视角的成交信息，只记录本账户的订单号，对方的订单号不在本账户的成交信息 */
 	char	m_strRefOrder[64] = { 0 };			// 关联订单编号字符串
 	char	m_strUserTag[64] = { 0 };			// 用户标签字符串
 
