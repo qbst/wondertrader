@@ -424,6 +424,40 @@ void TraderAdapter::logOrder(uint32_t localid, const char* stdCode, WTSOrderInfo
  * @param ayFunds 资金信息数组，可为NULL
  * 
  * 将持仓数据和资金数据保存到JSON格式的实时数据文件中。
+ * JSON格式的例子：
+ * ```json
+ * {
+ *   "positions": [
+ *     {
+ *       "code": "IF2512",
+ *       "long": {
+ *         "newvol": 100,
+ *         "newavail": 100,
+ *         "prevol": 0,
+ *         "preavail": 0
+ *       },
+ *       "short": {
+ *         "newvol": 0,
+ *         "newavail": 0,
+ *         "prevol": 0,
+ *         "preavail": 0
+ *       }
+ *     }
+ *   ],
+ *   "funds": {
+ *     "CNY": {
+ *       "prebalance": 100000,
+ *       "balance": 100000,
+ *       "closeprofit": 0,
+ *       "dynprofit": 0,
+ *       "margin": 0,
+ *       "fee": 0,
+ *       "available": 100000,
+ *       "deposit": 0,
+ *       "withdraw": 0
+ *     }
+ *   }
+ * }
  * 文件路径：traders/{交易通道ID}/rtdata.json
  */
 void TraderAdapter::saveData(WTSArray* ayFunds /* = NULL */)
@@ -1998,129 +2032,158 @@ void TraderAdapter::onRspPosition(const WTSArray* ayPositions)
 	}
 }
 
+/**
+ * @brief 订单查询响应回调
+ * @param ayOrders 订单信息数组
+ * 
+ * 处理订单查询响应：
+ * 1. 初始化订单映射表（如果不存在）
+ * 2. 清空未完成订单数量映射表（重新计算）
+ * 3. 遍历所有订单，进行以下处理：
+ *    a. 解析订单信息（合约代码、买卖方向等）
+ *    b. 转换为标准合约代码（根据合约类型选择不同的转换方式）
+ *    c. 更新订单ID集合（用于标记已处理过的订单）
+ *    d. 更新交易统计数据：
+ *       - 买入/卖出订单次数和数量
+ *       - 错单次数和数量（区分买入和卖出）
+ *       - 撤单次数和数量（区分普通撤单和自动撤单，区分买入和卖出）
+ *    e. 如果是本系统的订单（通过用户标签匹配）：
+ *       - 解析本地订单ID
+ *       - 添加到订单映射表（使用自旋锁保证线程安全）
+ *       - 更新未完成订单数量（买入增加，卖出减少）
+ * 4. 打印所有合约的未完成订单数量日志
+ * 5. 如果持仓查询已完成，设置状态为订单查询完成，并查询成交
+ * 
+ * 注意：
+ * - 只有活跃订单（isAlive()返回true）才会被添加到订单映射表
+ * - 只有本系统的订单（用户标签匹配订单模式）才会更新未完成订单数量
+ * - 未完成订单数量：买入订单为正数，卖出订单为负数
+ * - 错单和撤单的统计会区分普通订单（WOF_NOR）和自动撤单（如风控撤单）
+ */
 void TraderAdapter::onRspOrders(const WTSArray* ayOrders)
 {
-	if (ayOrders)
+	if (ayOrders)													// 如果订单信息数组存在
 	{
-		if (_orders == NULL)
-			_orders = OrderMap::create();
+		if (_orders == NULL)										// 如果订单映射表不存在
+			_orders = OrderMap::create();							// 创建订单映射表
 
-		_undone_qty.clear();
+		_undone_qty.clear();										// 清空未完成订单数量映射表（重新计算）
 
-		for (auto it = ayOrders->begin(); it != ayOrders->end(); it++)
+		for (auto it = ayOrders->begin(); it != ayOrders->end(); it++)	// 遍历所有订单
 		{
-			WTSOrderInfo* orderInfo = (WTSOrderInfo*)(*it);
-			if (orderInfo == NULL)
+			WTSOrderInfo* orderInfo = (WTSOrderInfo*)(*it);		// 获取订单信息
+			if (orderInfo == NULL)									// 如果订单信息为空，跳过
 				continue;
 
-			WTSContractInfo* cInfo = orderInfo->getContractInfo();
-			if (cInfo == NULL)
+			WTSContractInfo* cInfo = orderInfo->getContractInfo();	// 获取合约信息
+			if (cInfo == NULL)										// 如果合约信息为空，跳过
 				continue;
 
+			// 判断是否买入：买入=多头开仓或空头平仓
 			bool isBuy = (orderInfo->getDirection() == WDT_LONG && orderInfo->getOffsetType() == WOT_OPEN) || (orderInfo->getDirection() == WDT_SHORT && orderInfo->getOffsetType() != WOT_OPEN);
 
-			WTSCommodityInfo* commInfo = cInfo->getCommInfo();
+			WTSCommodityInfo* commInfo = cInfo->getCommInfo();		// 获取商品信息
 			std::string stdCode;
-			if (commInfo->getCategoty() == CC_FutOption || commInfo->getCategoty() == CC_SpotOption)
-				stdCode = CodeHelper::rawFutOptCodeToStdCode(cInfo->getCode(), cInfo->getExchg());
-			else if (CodeHelper::isMonthlyCode(cInfo->getCode()))//如果是分月合约
-				stdCode = CodeHelper::rawMonthCodeToStdCode(cInfo->getCode(), cInfo->getExchg());
-			else
-				stdCode = CodeHelper::rawFlatCodeToStdCode(cInfo->getCode(), cInfo->getExchg(), cInfo->getProduct());
+			if (commInfo->getCategoty() == CC_FutOption || commInfo->getCategoty() == CC_SpotOption)	// 如果是期货期权或现货期权
+				stdCode = CodeHelper::rawFutOptCodeToStdCode(cInfo->getCode(), cInfo->getExchg());		// 转换为标准代码
+			else if (CodeHelper::isMonthlyCode(cInfo->getCode()))	// 如果是分月合约
+				stdCode = CodeHelper::rawMonthCodeToStdCode(cInfo->getCode(), cInfo->getExchg());		// 转换为标准代码
+			else													// 普通合约
+				stdCode = CodeHelper::rawFlatCodeToStdCode(cInfo->getCode(), cInfo->getExchg(), cInfo->getProduct());	// 转换为标准代码
 
-			_orderids.insert(orderInfo->getOrderID());
+			_orderids.insert(orderInfo->getOrderID());				// 将订单号添加到订单ID集合（用于标记已处理过的订单）
 
-			WTSTradeStateInfo* statInfo = (WTSTradeStateInfo*)_stat_map->get(stdCode.c_str());
-			if (statInfo == NULL)
+			WTSTradeStateInfo* statInfo = (WTSTradeStateInfo*)_stat_map->get(stdCode.c_str());	// 获取交易统计信息
+			if (statInfo == NULL)									// 如果统计信息不存在，则创建
 			{
 				statInfo = WTSTradeStateInfo::create(stdCode.c_str());
 				_stat_map->add(stdCode, statInfo, false);
 			}
-			TradeStatInfo& statItem = statInfo->statInfo();
-			if (isBuy)
+			TradeStatInfo& statItem = statInfo->statInfo();			// 获取统计项
+			if (isBuy)												// 如果是买入订单
 			{
-				statItem.b_orders++;
-				statItem.b_ordqty += orderInfo->getVolume();
+				statItem.b_orders++;								// 增加买入订单次数
+				statItem.b_ordqty += orderInfo->getVolume();		// 增加买入订单数量
 
-				if (orderInfo->isError())
+				if (orderInfo->isError())							// 如果是错单（错单要和撤单区分开）
 				{
-					statItem.b_wrongs++;
-					statItem.b_wrongqty += orderInfo->getVolume() - orderInfo->getVolTraded();
+					statItem.b_wrongs++;							// 增加买入错单次数
+					statItem.b_wrongqty += orderInfo->getVolume() - orderInfo->getVolTraded();	// 增加买入错单数量（未成交部分）
 				}
-				else if (orderInfo->getOrderState() == WOS_Canceled)
+				else if (orderInfo->getOrderState() == WOS_Canceled)	// 如果是已撤销订单
 				{			
-					if (orderInfo->getOrderFlag() == WOF_NOR)
+					if (orderInfo->getOrderFlag() == WOF_NOR)		// 如果是普通订单标志
 					{
-						statItem.b_cancels++;
-						statItem.b_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();
+						statItem.b_cancels++;						// 增加买入普通撤单次数
+						statItem.b_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();	// 增加买入普通撤单数量（未成交部分）
 					}
-					else
+					else											// 如果是自动撤单（如风险控制撤单）
 					{
-						statItem.b_auto_cancels++;
-						statItem.b_auto_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();
+						statItem.b_auto_cancels++;					// 增加买入自动撤单次数
+						statItem.b_auto_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();	// 增加买入自动撤单数量（未成交部分）
 					}
 				}
 				
 			}
-			else
+			else													// 如果是卖出订单
 			{
-				statItem.s_orders++;
-				statItem.s_ordqty += orderInfo->getVolume();
+				statItem.s_orders++;								// 增加卖出订单次数
+				statItem.s_ordqty += orderInfo->getVolume();		// 增加卖出订单数量
 
-				if (orderInfo->isError())
+				if (orderInfo->isError())							// 如果是错单（错单要和撤单区分开）
 				{
-					statItem.s_wrongs++;
-					statItem.s_wrongqty += orderInfo->getVolume() - orderInfo->getVolTraded();
+					statItem.s_wrongs++;							// 增加卖出错单次数
+					statItem.s_wrongqty += orderInfo->getVolume() - orderInfo->getVolTraded();	// 增加卖出错单数量（未成交部分）
 				}
-				else if (orderInfo->getOrderState() == WOS_Canceled)
+				else if (orderInfo->getOrderState() == WOS_Canceled)	// 如果是已撤销订单
 				{
-					if (orderInfo->getOrderFlag() == WOF_NOR)
+					if (orderInfo->getOrderFlag() == WOF_NOR)		// 如果是普通订单标志
 					{
-						statItem.s_cancels++;
-						statItem.s_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();
+						statItem.s_cancels++;						// 增加卖出普通撤单次数
+						statItem.s_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();	// 增加卖出普通撤单数量（未成交部分）
 					}
-					else
+					else											// 如果是自动撤单（如风险控制撤单）
 					{
-						statItem.s_auto_cancels++;
-						statItem.s_auto_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();
+						statItem.s_auto_cancels++;					// 增加卖出自动撤单次数
+						statItem.s_auto_canclqty += orderInfo->getVolume() - orderInfo->getVolTraded();	// 增加卖出自动撤单数量（未成交部分）
 					}
 				}
 			}			
 
-			if (!orderInfo->isAlive())
+			if (!orderInfo->isAlive())								// 如果订单已结束（非活跃），跳过后续处理
 				continue;
 
-			if (!StrUtil::startsWith(orderInfo->getUserTag(), _order_pattern.c_str(), true))
-				continue;;
+			if (!StrUtil::startsWith(orderInfo->getUserTag(), _order_pattern.c_str(), true))	// 如果用户标签不匹配订单模式（不是本系统的订单）
+				continue;											// 跳过后续处理
 
-			char* userTag = (char*)orderInfo->getUserTag();
-			userTag += _order_pattern.size() + 1;
-			uint32_t localid = strtoul(userTag, NULL, 10);
+			char* userTag = (char*)orderInfo->getUserTag();			// 获取用户标签
+			userTag += _order_pattern.size() + 1;					// 跳过订单标签模式，定位到本地订单ID
+			uint32_t localid = strtoul(userTag, NULL, 10);			// 解析本地订单ID
 
 			{
-				SpinLock lock(_mtx_orders);
-				_orders->add(localid, orderInfo);
+				SpinLock lock(_mtx_orders);							// 加锁保护订单映射表
+				_orders->add(localid, orderInfo);					// 将订单添加到订单映射表（使用本地订单ID作为key）
 			}
 
-			double& curQty = _undone_qty[stdCode];
-			curQty += orderInfo->getVolLeft()*(isBuy ? 1 : -1);
+			double& curQty = _undone_qty[stdCode];					// 获取该合约的未完成订单数量引用
+			curQty += orderInfo->getVolLeft()*(isBuy ? 1 : -1);		// 更新未完成订单数量（买入增加，卖出减少）
 		}
 
-		for (auto it = _undone_qty.begin(); it != _undone_qty.end(); it++)
+		for (auto it = _undone_qty.begin(); it != _undone_qty.end(); it++)	// 遍历所有未完成订单数量
 		{
-			const char* stdCode = it->first.c_str();
-			const double& curQty = _undone_qty[stdCode];
+			const char* stdCode = it->first.c_str();				// 获取标准合约代码
+			const double& curQty = _undone_qty[stdCode];			// 获取未完成订单数量
 
 			WTSLogger::log_dyn("trader", _id.c_str(), LL_INFO, 
-				"[{}]{} undone quantity {}", _id.c_str(), stdCode, curQty);
+				"[{}]{} undone quantity {}", _id.c_str(), stdCode, curQty);	// 记录未完成订单数量日志
 		}
 	}
 
-	if (_state == AS_POSITION_QRYED)
+	if (_state == AS_POSITION_QRYED)								// 如果持仓查询已完成
 	{
-		_state = AS_ORDERS_QRYED;
+		_state = AS_ORDERS_QRYED;									// 设置状态为订单查询完成
 
-		_trader_api->queryTrades();
+		_trader_api->queryTrades();									// 查询成交（继续查询流程）
 	}
 }
 
