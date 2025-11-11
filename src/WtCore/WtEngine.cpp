@@ -687,6 +687,55 @@ void WtEngine::load_datas()
 
 	std::string filename = WtHelper::getPortifolioDir();  // 获取组合目录路径
 	filename += "datas.json";  // 拼接数据文件名
+	/*一个具有实际意义的完整的JSON例子：
+	{
+		"fund": {
+			"predynbal": 1000000, //预动态余额
+			"balance": 1000000, //余额
+			"prebalance": 1000000, //预余额
+			"profit": 0, //平仓盈亏
+			"dynprofit": 0, //浮动盈亏
+			"fees": 0, //手续费
+			"last_date": 20210101, //上次结算日期
+			"max_dyn_bal": 1000000, //最大动态余额
+			"max_time": 1000000, //最大动态余额时间
+			"min_dyn_bal": 1000000, //最小动态余额
+			"min_time": 1000000, //最小动态余额时间
+			"maxmd": {
+				"date": 20210101,
+				"dyn_balance": 1000000
+			},
+			"minmd": {
+				"date": 20210101,
+				"dyn_balance": 1000000
+			},
+			"update_time": 1000000
+		}
+		"positions": [
+			{
+				"code": "CFFEX.IF", //合约代码
+				"volume": 10, //持仓数量
+				"closeprofit": 0, //平仓盈亏
+				"dynprofit": 0, //浮动盈亏
+				"details": [
+					{
+						"long": true, //多空方向
+						"price": 10000, //开仓价格
+						"volume": 10, //持仓数量
+						"opentime": 1000000, //开仓时间
+						"opentdate": 20210101 //开仓日期
+					}
+				]
+			},
+			{s
+				"code": "CFFEX.IF",
+				"volume": 10,
+				"closeprofit": 0,
+				"dynprofit": 0
+			}
+		]
+	}
+	*/
 
 	if (!StdFile::exists(filename.c_str()))  // 如果文件不存在
 	{
@@ -1158,6 +1207,16 @@ void WtEngine::sub_tick(uint32_t sid, const char* stdCode)
  * @param filename 手续费模板文件路径
  * 
  * 从配置文件中加载手续费模板，设置各品种的开仓、平仓、平今手续费率和保证金率。
+ * JSON例子：
+ * {
+ *   "CFFEX.IF": {
+ *     "open": 10,
+ *     "close": 10,
+ *     "closetoday": 10,
+ *     "byvolume": true
+ *   }
+ * }
+ * "CFFEX.IF" 是品种ID，open 是开仓手续费，close 是平仓手续费，closetoday 是平今手续费，byvolume 是是否按数量计算。
  * 
  * 实现逻辑：
  * 1. 检查文件是否存在

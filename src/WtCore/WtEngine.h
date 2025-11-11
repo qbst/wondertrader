@@ -676,8 +676,8 @@ protected:
 
 	IBaseDataMgr*	_base_data_mgr;	// 基础数据管理器指针，用于获取合约信息等
 	IHotMgr*		_hot_mgr;		// 主力管理器指针，用于获取主力合约信息等
-	WtDtMgr*		_data_mgr;		// 数据管理器指针，用于获取行情数据等
 	IEngineEvtListener*	_evt_listener;  // 事件监听器指针，用于监听引擎事件
+	WtDtMgr*		_data_mgr;		// 数据管理器指针，用于获取行情数据等
 
 	//By Wesley @ 2022.02.07
 	//tick数据订阅项，first是contextid，second是订阅选项，0-原始订阅，1-前复权，2-后复权
