@@ -561,6 +561,28 @@ void WtEngine::on_session_begin()
  * 3. 保存持仓数据（持仓明细、盈亏等）
  * 4. 保存风控参数（缩放系数、生效日期）
  * 5. 将JSON对象序列化为字符串并写入文件
+ * 
+ * 一个完整的JSON例子：
+ * 
+ * {
+ *   "fund": {
+ *     "predynbal": 1000000,
+ *     "balance": 1000000,
+ *     "prebalance": 1000000,
+ *     "profit": 0,
+ *     "dynprofit": 0,
+ *   }
+ *   "positions": [
+ *     {
+ *       "code": "CFFEX.IF",
+ *       "volume": 10,
+ *       "closeprofit": 0,
+ *       "dynprofit": 0,
+ *     }
+ *   ]
+ * }
+ * 
+ * 
  */
 void WtEngine::save_datas()
 {
@@ -1462,7 +1484,10 @@ void WtEngine::do_set_position(const char* stdCode, double qty, double curPx /* 
 			if (!dInfo._long)  // 如果是空仓
 				profit *= -1;  // 盈亏反向（空仓盈亏方向相反）
 			pInfo->_closeprofit += profit;  // 累加持仓平仓盈亏
-			pInfo->_dynprofit = pInfo->_dynprofit*dInfo._volume / (dInfo._volume + maxQty);//浮盈也要做等比缩放（按比例缩放浮动盈亏）
+			// 计算被平仓部分的浮动盈亏
+			double closedDynProfit = (curPx - dInfo._price) * maxQty * commInfo->getVolScale() * (!dInfo._long > 0 ? -1 : 1);
+			// 从总浮动盈亏中减去被平仓部分的浮动盈亏
+			pInfo->_dynprofit -= closedDynProfit;
 			fundInfo._profit += profit;  // 累加组合平仓盈亏
 			fundInfo._balance += profit;  // 增加余额（盈亏计入余额）
 

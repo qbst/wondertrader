@@ -170,29 +170,67 @@ const char* WTSHotMgr::getRuleTag(const char* stdCode)
 	// 标准格式：交易所.品种，如"SHFE.AU"
 	auto idx = StrUtil::findLast(stdCode, '.');
 	
+	// 构造完整品种代码用于查找
+	std::string fullPid;
 	if (idx == std::string::npos)
 	{
 		// 如果没有找到点号，说明是纯品种代码格式（如"AU"）
-		// 直接使用整个代码（排除后缀）在规则映射表中查找
-		auto it = m_mapCustRules->find(std::string(stdCode, len));
-		if (it == m_mapCustRules->end())
-			return "";  // 未找到对应规则，返回空字符串
-
-		// 返回找到的规则标签
-		return it->first.c_str();
+		// 这种情况下无法确定交易所，需要遍历所有规则查找
+		// 但为了保持兼容性，先尝试直接查找（虽然通常不会成功）
+		fullPid = std::string(stdCode, len);
+	}
+	else
+	{
+		// 如果找到了点号，提取完整品种代码（交易所.品种）
+		fullPid = std::string(stdCode, len);
 	}
 
-	// 如果找到了点号，提取点号后面的品种代码部分
-	const char* tail = stdCode + idx + 1;  // 指向点号后的第一个字符
-	
-	// 使用品种代码在规则映射表中查找对应的规则标签
-	// len - idx - 1 计算品种代码的实际长度（排除点号和可能的后缀）
-	auto it = m_mapCustRules->find(std::string(tail, len - idx - 1));
-	if (it == m_mapCustRules->end())
-		return "";  // 未找到对应规则，返回空字符串
+	// 遍历所有规则标签，查找哪个规则包含该品种
+	// m_mapCustRules 的键是规则标签（如"HOT"、"2ND"），值是品种映射表
+	WTSCustomSwitchMap::ConstIterator it = m_mapCustRules->begin();
+	for (; it != m_mapCustRules->end(); it++)
+	{
+		// 获取当前规则标签对应的品种映射表
+		WTSProductHotMap* prodMap = STATIC_CONVERT(it->second, WTSProductHotMap*);
+		if (prodMap == NULL)
+			continue;
 
-	// 返回找到的规则标签
-	return it->first.c_str();
+		// 在品种映射表中查找完整品种代码
+		// WTSProductHotMap 的键是完整品种代码（如"SHFE.AU"）
+		WTSDateHotMap* dtMap = STATIC_CONVERT(prodMap->get(fullPid.c_str()), WTSDateHotMap*);
+		if (dtMap != NULL)
+		{
+			// 找到了匹配的品种，返回对应的规则标签
+			// it->first 是规则标签（如"HOT"、"2ND"）
+			return it->first.c_str();
+		}
+
+		// 如果没有找到完整品种代码，且输入是纯品种代码（无交易所前缀）
+		// 尝试在所有品种中查找匹配的品种代码
+		if (idx == std::string::npos)
+		{
+			// 遍历当前规则下的所有品种，查找品种代码匹配的项
+			WTSProductHotMap::ConstIterator prodIt = prodMap->begin();
+			for (; prodIt != prodMap->end(); prodIt++)
+			{
+				// prodIt->first 是完整品种代码（如"SHFE.AU"）
+				// 提取品种代码部分（点号后的部分）
+				auto dotPos = prodIt->first.find_last_of('.');
+				if (dotPos != std::string::npos)
+				{
+					std::string pid = prodIt->first.substr(dotPos + 1);
+					if (pid == fullPid)
+					{
+						// 找到匹配的品种代码，返回规则标签
+						return it->first.c_str();
+					}
+				}
+			}
+		}
+	}
+
+	// 未找到对应规则，返回空字符串
+	return "";
 }
 
 /**
