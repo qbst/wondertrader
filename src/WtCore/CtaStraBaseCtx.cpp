@@ -433,6 +433,61 @@ void CtaStraBaseCtx::load_userdata()
  * 3. 条件单：待触发的条件单列表
  * 4. 信号：待执行的交易信号
  * 5. 杂项：上次K线编号等
+ * 
+ * 一个完整的JSON例子：
+ * {
+ *   "fund": {
+ *     "total_profit": 10000,
+ *     "total_dynprofit": 10000,
+ *     "tdate": 20210101,
+ *     "total_fees": 10000
+ *   }
+ * }
+ * {
+ *   "positions": [
+ *     {
+ *       "code": "CFFEX.IF",
+ *       "volume": 10,
+ *       "closeprofit": 0,
+ *       "dynprofit": 0
+ *     }
+ *   ]
+ * }
+ * {
+ *   "conditions": [
+ *     {
+ *       "code": "CFFEX.IF",
+ *       "volume": 10,
+ *       "closeprofit": 0,
+ *       "dynprofit": 0
+ *     }
+ *   ]
+ * }
+ * {
+ *   "signals": [
+ *     {
+ *       "code": "CFFEX.IF",
+ *       "volume": 10,
+ *       "closeprofit": 0,
+ *       "dynprofit": 0
+ *     }
+ *   ]
+ * }
+ * {
+ *   "utils": {
+ *     "last_barno": 10000
+ *   }
+ * }
+ * {
+ *   "signals": [
+ *     {
+ *       "code": "CFFEX.IF",
+ *       "volume": 10,
+ *       "closeprofit": 0,
+ *       "dynprofit": 0
+ *     }
+ *   ]
+ * }
  */
 void CtaStraBaseCtx::load_data(uint32_t flag /* = 0xFFFFFFFF */)
 {
@@ -582,6 +637,43 @@ void CtaStraBaseCtx::load_data(uint32_t flag /* = 0xFFFFFFFF */)
 	}
 
 	{//读取条件单
+	/* 一个JSON例子：
+	{
+		"conditions": {
+			"settime": 1715769600,
+			"items": {
+				"CODE1": [
+					{
+						"usertag": "user1",
+						"field": 0,
+						"alg": 0,
+						"target": 10000,
+						"qty": 1,
+						"action": 0
+					},
+					{
+						"usertag": "user1",
+						"field": 0,
+						"alg": 0,
+						"target": 10000,
+						"qty": 1,
+						"action": 0
+					}
+				],
+				"CODE2": [
+					{
+						"usertag": "user2",
+						"field": 0,
+						"alg": 0,
+						"target": 10000,
+						"qty": 1,
+						"action": 0
+					}
+				]
+			}
+		}
+	}
+	*/
 		uint32_t count = 0;  // 条件单计数器
 		const rj::Value& jCond = root["conditions"];  // 获取条件单对象
 		if (!jCond.IsNull() && jCond.IsObject())  // 如果条件单对象有效
@@ -632,6 +724,18 @@ void CtaStraBaseCtx::load_data(uint32_t flag /* = 0xFFFFFFFF */)
 	}
 
 	// 读取交易信号
+	/* 一个JSON例子：
+	{
+		"signals": {
+			"CODE1": {
+				"usertag": "user1",
+				"volume": 1,
+				"sigprice": 10000,
+				"gentime": 1715769600
+			}
+		}
+	}
+	*/
 	if (root.HasMember("signals"))  // 如果JSON中包含signals字段
 	{
 		//读取信号
