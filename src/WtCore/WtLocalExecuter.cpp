@@ -96,6 +96,24 @@ void WtLocalExecuter::setTrader(TraderAdapter* adapter)
  * - poolsize: 线程池大小
  * - clear: 自动清理配置（active、includes、excludes）
  * - groups: 合约组合配置
+ * 
+ * 参数 params 的一个完整JSON格式的例子：
+ * {
+ *   "scale": 1.0,
+ *   "strict_sync": false,
+ *   "poolsize": 10,
+ *   "clear": {
+ *     "active": true,
+ *     "includes": ["CFFEX.IF"],
+ *     "excludes": ["CFFEX.IF"]
+ *   },
+ *   "groups": {
+ *     "group1": {
+ *       "CFFEX.IF": 1.0,
+ *       "CFFEX.IC": 1.0
+ *     }
+ *   }
+ * }
  */
 bool WtLocalExecuter::init(WTSVariant* params)
 {
