@@ -312,6 +312,36 @@ void WtExecuterMgr::commit_cached_targets(double scale /* = 1.0 */)
  * 2. 遍历数组，解析每个路由规则
  * 3. 支持单个执行器ID和多个执行器ID列表
  * 4. 记录已路由的执行器ID
+ * 
+ * config 的一个完整JOSN格式例子：
+ * ```json
+ * [
+ *   {
+ *     "strategy": "strategy1",
+ *     "executer": ["exec1", "exec2"]
+ *   },
+ *   {
+ *     "strategy": "strategy2",
+ *     "executer": "exec3"
+ *   }
+ *   {
+ *     "strategy": "strategy3",
+ *     "executer": ["exec4", "exec5"]
+ *   }
+ * ]
+ * ```
+ * 对于这个例子，_router_rules 的结果为：
+ * ```json
+ * {
+ *   "strategy1": ["exec1", "exec2"],
+ *   "strategy2": ["exec3"],
+ *   "strategy3": ["exec4", "exec5"]
+ * }
+ * ```
+ * _routed_executers 的结果为：
+ * ```json
+ * ["exec1", "exec2", "exec3", "exec4", "exec5"]
+ * ```
  */
 bool WtExecuterMgr::load_router_rules(WTSVariant* config)
 {
