@@ -458,7 +458,7 @@ void WtCtaEngine::on_schedule(uint32_t curDate, uint32_t curTime)
 						_exec_mgr.add_target_to_cache(realCode.c_str(), qty, execid.c_str());	// 将目标持仓添加到执行器管理器的缓存中
 				}
 				else														// 如果被过滤
-				{
+				{ 
 					// 输出日志
 					WTSLogger::info("[Filters] Target position of {} of strategy {} ignored by strategy filter", stdCode, ctx->name());	// 记录过滤日志
 				}
