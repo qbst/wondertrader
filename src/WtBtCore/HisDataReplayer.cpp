@@ -2433,164 +2433,164 @@ WTSKlineSlice* HisDataReplayer::get_kline_slice(const char* stdCode, const char*
 		}
 	}
 	else                                                                   // 如果是日线
-		kp = KP_DAY;
+		kp = KP_DAY;                                                         // 设置K线周期为日线
 
-	bool isDay = kp == KP_DAY;
+	bool isDay = kp == KP_DAY;                                              // 判断是否为日线周期
 
-	auto it = _bars_cache.find(key);
-	bool bHasHisData = false;
-	bool bHasCache = (it != _bars_cache.end());
-	if (!bHasCache)
+	auto it = _bars_cache.find(key);                                        // 在K线缓存中查找对应的键值
+	bool bHasHisData = false;                                               // 是否已加载历史数据标志
+	bool bHasCache = (it != _bars_cache.end());                             // 缓存中是否存在该键值
+	if (!bHasCache)                                                         // 如果缓存中不存在
 	{
-		if (realTimes != 1)
+		if (realTimes != 1)                                                 // 如果实际倍数不为1（需要重采样）
 		{
-			std::string rawKey = StrUtil::printf("%s#%s#%u", stdCode, period, baseTimes);
-			if (_bars_cache.find(rawKey) == _bars_cache.end())
+			std::string rawKey = StrUtil::printf("%s#%s#%u", stdCode, period, baseTimes);  // 构造原始K线的键值（合约代码#周期#基础倍数）
+			if (_bars_cache.find(rawKey) == _bars_cache.end())             // 如果原始K线数据也未缓存
 			{
 				/*
 				 *	By Wesley @ 2021.12.20
 				 *	先从extloader加载数据，如果加载不到，再走原来的历史数据存储引擎加载
 				 */
-				if(NULL != _bt_loader)
-					bHasHisData = cacheFinalBarsFromLoader(rawKey, stdCode, kp);
+				if(NULL != _bt_loader)                                      // 如果外部加载器存在
+					bHasHisData = cacheFinalBarsFromLoader(rawKey, stdCode, kp);  // 尝试从外部加载器加载最终K线数据
 				
-				if(!bHasHisData)
+				if(!bHasHisData)                                            // 如果外部加载器未加载成功
 				{
-					if (_mode == "csv")
+					if (_mode == "csv")                                     // 如果数据模式为CSV
 					{
-						bHasHisData = cacheRawBarsFromCSV(rawKey, stdCode, kp);
+						bHasHisData = cacheRawBarsFromCSV(rawKey, stdCode, kp);  // 从CSV文件加载原始K线数据
 					}
-					else
+					else                                                    // 如果数据模式为二进制
 					{
-						bHasHisData = cacheRawBarsFromBin(rawKey, stdCode, kp);
+						bHasHisData = cacheRawBarsFromBin(rawKey, stdCode, kp);  // 从二进制文件加载原始K线数据
 					}
 				}
 				
 			}
-			else
+			else                                                            // 如果原始K线数据已缓存
 			{
-				bHasHisData = true;
+				bHasHisData = true;                                         // 标记历史数据已存在
 			}
 		}
-		else
+		else                                                                // 如果实际倍数为1（不需要重采样）
 		{
 			/*
 			 *	By Wesley @ 2021.12.20
 			 *	先从extloader加载数据，如果加载不到，再走原来的历史数据存储引擎加载
 			 */
-			if (NULL != _bt_loader)
+			if (NULL != _bt_loader)                                         // 如果外部加载器存在
 			{
-				bHasHisData = cacheFinalBarsFromLoader(key, stdCode, kp);
+				bHasHisData = cacheFinalBarsFromLoader(key, stdCode, kp);   // 尝试从外部加载器加载最终K线数据
 			}
 
-			if(!bHasHisData)
+			if(!bHasHisData)                                                // 如果外部加载器未加载成功
 			{
-				if (_mode == "csv")
+				if (_mode == "csv")                                         // 如果数据模式为CSV
 				{
-					bHasHisData = cacheRawBarsFromCSV(key, stdCode, kp);
+					bHasHisData = cacheRawBarsFromCSV(key, stdCode, kp);    // 从CSV文件加载K线数据
 				}
-				else
+				else                                                        // 如果数据模式为二进制
 				{
-					bHasHisData = cacheRawBarsFromBin(key, stdCode, kp);
+					bHasHisData = cacheRawBarsFromBin(key, stdCode, kp);     // 从二进制文件加载K线数据
 				}
 			}
 			
 		}
 	}
-	else
+	else                                                                    // 如果缓存中已存在
 	{
-		bHasHisData = true;
+		bHasHisData = true;                                                 // 标记历史数据已存在
 	}
 
-	if (!bHasHisData)
-		return NULL;
+	if (!bHasHisData)                                                       // 如果历史数据加载失败
+		return NULL;                                                        // 返回空指针
 
-	WTSSessionInfo* sInfo = get_session_info(stdCode, true);
-	if(sInfo == NULL)
+	WTSSessionInfo* sInfo = get_session_info(stdCode, true);                // 获取合约的交易时段信息
+	if(sInfo == NULL)                                                       // 如果交易时段信息不存在
 	{
-		WTSLogger::error("Cannot find corresponding session of {}", stdCode);
-		return NULL;
+		WTSLogger::error("Cannot find corresponding session of {}", stdCode);  // 记录错误日志：找不到对应的交易时段
+		return NULL;                                                        // 返回空指针
 	}
 
-	bool isClosed = (sInfo->offsetTime(_cur_time, true) >= sInfo->getCloseTime(true));
-	if (realTimes != 1 && !bHasCache)
+	bool isClosed = (sInfo->offsetTime(_cur_time, true) >= sInfo->getCloseTime(true));  // 判断当前时间是否已超过收盘时间
+	if (realTimes != 1 && !bHasCache)                                      // 如果需要重采样且缓存中不存在
 	{	
-		std::string rawKey = StrUtil::printf("%s#%s#%u", stdCode, period, baseTimes);
-		BarsListPtr& rawBars = _bars_cache[rawKey];
-		WTSKlineSlice* rawKline = WTSKlineSlice::create(stdCode, kp, realTimes, &rawBars->_bars[0], rawBars->_bars.size());
-		rawKline->setCode(stdCode);
+		std::string rawKey = StrUtil::printf("%s#%s#%u", stdCode, period, baseTimes);  // 构造原始K线的键值
+		BarsListPtr& rawBars = _bars_cache[rawKey];                        // 获取原始K线数据列表的引用
+		WTSKlineSlice* rawKline = WTSKlineSlice::create(stdCode, kp, realTimes, &rawBars->_bars[0], rawBars->_bars.size());  // 创建原始K线切片对象
+		rawKline->setCode(stdCode);                                         // 设置K线切片的合约代码
 
-		static WTSDataFactory dataFact;
-		WTSKlineData* kData = dataFact.extractKlineData(rawKline, kp, realTimes, sInfo, true, _align_by_section);
-		rawKline->release();
+		static WTSDataFactory dataFact;                                     // 静态数据工厂对象（用于K线数据提取）
+		WTSKlineData* kData = dataFact.extractKlineData(rawKline, kp, realTimes, sInfo, true, _align_by_section);  // 从原始K线中提取重采样后的K线数据
+		rawKline->release();                                                // 释放原始K线切片对象
 
-		if(kData)
+		if(kData)                                                           // 如果重采样成功
 		{
-			_bars_cache[key].reset(new BarsList());
-			BarsListPtr barsList = _bars_cache[key];
-			barsList->_code = stdCode;
-			barsList->_period = kp;
-			barsList->_times = realTimes;
-			barsList->_count = kData->size();
-			barsList->_bars.swap(kData->getDataRef());
-			kData->release();
-			WTSLogger::info("{} resampled {}{} back kline of {} ready", barsList->_bars.size(), period, times, stdCode);
+			_bars_cache[key].reset(new BarsList());                         // 在缓存中创建新的K线列表对象
+			BarsListPtr barsList = _bars_cache[key];                        // 获取新创建的K线列表指针
+			barsList->_code = stdCode;                                      // 设置合约代码
+			barsList->_period = kp;                                         // 设置K线周期
+			barsList->_times = realTimes;                                   // 设置倍数
+			barsList->_count = kData->size();                               // 设置K线数量
+			barsList->_bars.swap(kData->getDataRef());                      // 交换K线数据（避免拷贝）
+			kData->release();                                               // 释放K线数据对象
+			WTSLogger::info("{} resampled {}{} back kline of {} ready", barsList->_bars.size(), period, times, stdCode);  // 记录信息日志：重采样完成
 		}
-		else
+		else                                                                // 如果重采样失败
 		{
-			WTSLogger::error("Resampling {}{} back kline of {} failed", period, times, stdCode);
-			return NULL;
+			WTSLogger::error("Resampling {}{} back kline of {} failed", period, times, stdCode);  // 记录错误日志：重采样失败
+			return NULL;                                                    // 返回空指针
 		}
 	}
 
-	BarsListPtr& kBlkPair = _bars_cache[key];
-	if(kBlkPair == NULL)
+	BarsListPtr& kBlkPair = _bars_cache[key];                               // 获取K线列表的引用
+	if(kBlkPair == NULL)                                                    // 如果K线列表为空
 	{
-		return NULL;
+		return NULL;                                                        // 返回空指针
 	}
 
-	_codes_in_subbed.insert(stdCode);
+	_codes_in_subbed.insert(stdCode);                                       // 将合约代码添加到已订阅集合中
 
-	if (kBlkPair->_cursor == UINT_MAX)
+	if (kBlkPair->_cursor == UINT_MAX)                                     // 如果游标为最大值（表示还未经过初始定位）
 	{
 		//还没有经过初始定位
-		WTSBarStruct bar;
-		bar.date = _cur_tdate;
-		if(kp != KP_DAY)
-			bar.time = (_cur_date - 19900000) * 10000 + _cur_time;
+		WTSBarStruct bar;                                                   // 创建临时K线结构体用于比较
+		bar.date = _cur_tdate;                                              // 设置K线的交易日期为当前交易日期
+		if(kp != KP_DAY)                                                    // 如果不是日线
+			bar.time = (_cur_date - 19900000) * 10000 + _cur_time;         // 设置K线的时间戳（日期偏移*10000 + 时间）
 		
-		auto it = std::lower_bound(kBlkPair->_bars.begin(), kBlkPair->_bars.end(), bar, [isDay, isClosed](const WTSBarStruct& a, const WTSBarStruct& b){
-			if (isDay)
-				if (!isClosed)
-					return a.date < b.date;
-				else 
-					return a.date <= b.date;
-			else
-				return a.time < b.time;
+		auto it = std::lower_bound(kBlkPair->_bars.begin(), kBlkPair->_bars.end(), bar, [isDay, isClosed](const WTSBarStruct& a, const WTSBarStruct& b){  // 使用二分查找定位当前时间对应的K线位置
+			if (isDay)                                                      // 如果是日线
+				if (!isClosed)                                              // 如果未收盘
+					return a.date < b.date;                                  // 按日期比较（严格小于）
+				else                                                        // 如果已收盘
+					return a.date <= b.date;                                // 按日期比较（小于等于）
+			else                                                            // 如果不是日线
+				return a.time < b.time;                                      // 按时间戳比较
 		});
 
-		std::size_t eIdx = it - kBlkPair->_bars.begin();
+		std::size_t eIdx = it - kBlkPair->_bars.begin();                    // 计算找到的位置索引
 
-		if (it != kBlkPair->_bars.end())
+		if (it != kBlkPair->_bars.end())                                   // 如果找到了对应的K线
 		{
-			WTSBarStruct& curBar = *it;
-			if (isDay)
+			WTSBarStruct& curBar = *it;                                     // 获取当前K线的引用
+			if (isDay)                                                      // 如果是日线
 			{
-				if (curBar.date >= _cur_tdate && !isClosed)
+				if (curBar.date >= _cur_tdate && !isClosed)                 // 如果当前K线日期大于等于当前交易日期且未收盘
 				{
-					if (eIdx > 0)
+					if (eIdx > 0)                                           // 如果索引大于0
 					{
-						it--;
-						eIdx--;
+						it--;                                               // 迭代器向前移动一位
+						eIdx--;                                             // 索引减1
 					}
 
 				}
-				else if (curBar.date > _cur_tdate && isClosed)
+				else if (curBar.date > _cur_tdate && isClosed)              // 如果当前K线日期大于当前交易日期且已收盘
 				{
-					if (eIdx > 0)
+					if (eIdx > 0)                                           // 如果索引大于0
 					{
-						it--;
-						eIdx--;
+						it--;                                               // 迭代器向前移动一位
+						eIdx--;                                             // 索引减1
 					}
 				}
 
@@ -2599,308 +2599,348 @@ WTSKlineSlice* HisDataReplayer::get_kline_slice(const char* stdCode, const char*
 				 *	根据Issue#122，加了一个兜底的判断
 				 *	主要防止日线回测漏掉第一根bar
 				 */
-				if(eIdx == 0 && curBar.date > _cur_tdate)
+				if(eIdx == 0 && curBar.date > _cur_tdate)                   // 如果索引为0且当前K线日期大于当前交易日期（兜底判断）
 				{
-					kBlkPair->_cursor = 0;
+					kBlkPair->_cursor = 0;                                   // 设置游标为0（表示没有可用的K线）
 				}
-				else
+				else                                                        // 否则
 				{
-					kBlkPair->_cursor = eIdx + 1;
+					kBlkPair->_cursor = eIdx + 1;                           // 设置游标为索引+1（游标指向下一个位置）
 				}
 			}
-			else
+			else                                                            // 如果不是日线
 			{
-				if (curBar.time > bar.time)
+				if (curBar.time > bar.time)                                 // 如果当前K线时间大于目标时间
 				{
-					if (eIdx > 0)
+					if (eIdx > 0)                                           // 如果索引大于0
 					{
-						it--;
-						eIdx--;
+						it--;                                               // 迭代器向前移动一位
+						eIdx--;                                             // 索引减1
 					}
 				}
 
-				kBlkPair->_cursor = eIdx + 1;
+				kBlkPair->_cursor = eIdx + 1;                               // 设置游标为索引+1
 			}
 		}
-		else
+		else                                                                // 如果未找到对应的K线
 		{
-			return NULL;
+			return NULL;                                                    // 返回空指针
 		}
 	}
-	else
+	else                                                                    // 如果游标已初始化（已定位过）
 	{
-		uint32_t curMin = (_cur_date - 19900000) * 10000 + _cur_time;
-		if (isDay)
+		uint32_t curMin = (_cur_date - 19900000) * 10000 + _cur_time;       // 计算当前时间戳（分钟级别）
+		if (isDay)                                                          // 如果是日线
 		{
-			if (kBlkPair->_cursor <= kBlkPair->_count)
+			if (kBlkPair->_cursor <= kBlkPair->_count)                      // 如果游标未超出K线数量
 			{
-				if(!isClosed)
+				if(!isClosed)                                               // 如果未收盘
 				{
-					while (kBlkPair->_bars[kBlkPair->_cursor - 1].date < _cur_tdate  && kBlkPair->_cursor < kBlkPair->_count && kBlkPair->_bars[kBlkPair->_cursor].date < _cur_tdate)
+					while (kBlkPair->_bars[kBlkPair->_cursor - 1].date < _cur_tdate  && kBlkPair->_cursor < kBlkPair->_count && kBlkPair->_bars[kBlkPair->_cursor].date < _cur_tdate)  // 循环移动游标直到找到当前日期之前的最后一根K线
 					{
-						kBlkPair->_cursor++;
+						kBlkPair->_cursor++;                                // 游标向后移动
 					}
 				}
-				else
+				else                                                        // 如果已收盘
 				{
-					while (kBlkPair->_bars[kBlkPair->_cursor - 1].date <= _cur_tdate  && kBlkPair->_cursor < kBlkPair->_count && kBlkPair->_bars[kBlkPair->_cursor].date <= _cur_tdate)
+					while (kBlkPair->_bars[kBlkPair->_cursor - 1].date <= _cur_tdate  && kBlkPair->_cursor < kBlkPair->_count && kBlkPair->_bars[kBlkPair->_cursor].date <= _cur_tdate)  // 循环移动游标直到找到当前日期或之前的最后一根K线
 					{
-						kBlkPair->_cursor++;
+						kBlkPair->_cursor++;                                // 游标向后移动
 					}
 				}
 				
 
-				if (kBlkPair->_bars[kBlkPair->_cursor - 1].date > _cur_tdate)
-					kBlkPair->_cursor--;
+				if (kBlkPair->_bars[kBlkPair->_cursor - 1].date > _cur_tdate)  // 如果游标前一根K线的日期大于当前交易日期
+					kBlkPair->_cursor--;                                     // 游标向前回退一位
 			}
 		}
-		else
+		else                                                                // 如果不是日线
 		{
-			if (kBlkPair->_cursor <= kBlkPair->_count)
+			if (kBlkPair->_cursor <= kBlkPair->_count)                      // 如果游标未超出K线数量
 			{
-				while (kBlkPair->_bars[kBlkPair->_cursor-1].time < curMin && kBlkPair->_cursor < kBlkPair->_count)
+				while (kBlkPair->_bars[kBlkPair->_cursor-1].time < curMin && kBlkPair->_cursor < kBlkPair->_count)  // 循环移动游标直到找到当前时间之前的最后一根K线
 				{
-					kBlkPair->_cursor++;
+					kBlkPair->_cursor++;                                    // 游标向后移动
 				}
 
-				if (kBlkPair->_bars[kBlkPair->_cursor - 1].time > curMin)
-					kBlkPair->_cursor--;
+				if (kBlkPair->_bars[kBlkPair->_cursor - 1].time > curMin)   // 如果游标前一根K线的时间大于当前时间
+					kBlkPair->_cursor--;                                    // 游标向前回退一位
 			}
 		}
 	}
 
 
-	if (kBlkPair->_cursor == 0)
-		return NULL;
+	if (kBlkPair->_cursor == 0)                                             // 如果游标为0（表示没有可用的K线）
+		return NULL;                                                        // 返回空指针
 
-	uint32_t sIdx = 0;
-	if (kBlkPair->_cursor > count)
-		sIdx = kBlkPair->_cursor - count;
+	uint32_t sIdx = 0;                                                      // 起始索引初始化为0
+	if (kBlkPair->_cursor > count)                                          // 如果游标大于请求的数量
+		sIdx = kBlkPair->_cursor - count;                                   // 计算起始索引（游标-数量）
 
-	uint32_t realCnt = kBlkPair->_cursor - sIdx;
-	WTSKlineSlice* kline = WTSKlineSlice::create(stdCode, kp, 1, kBlkPair->_bars.data() + sIdx, realCnt);
-	return kline;
+	uint32_t realCnt = kBlkPair->_cursor - sIdx;                            // 计算实际返回的K线数量（游标-起始索引）
+	WTSKlineSlice* kline = WTSKlineSlice::create(stdCode, kp, 1, kBlkPair->_bars.data() + sIdx, realCnt);  // 创建K线切片对象（从起始索引开始，长度为实际数量）
+	return kline;                                                          // 返回K线切片指针
 }
 
+/**
+ * @brief 获取Tick数据切片
+ * 
+ * 根据合约代码、数量和时间参数，从缓存中获取指定数量的Tick数据切片
+ * 
+ * @param stdCode 合约代码
+ * @param count 需要获取的Tick数量
+ * @param etime 截止时间戳（可选，0表示使用当前时间）
+ * @return Tick数据切片指针，失败返回NULL
+ */
 WTSTickSlice* HisDataReplayer::get_tick_slice(const char* stdCode, uint32_t count, uint64_t etime)
 {
-	if (!_tick_enabled)
-		return NULL;
+	if (!_tick_enabled)                                                     // 如果Tick数据未启用
+		return NULL;                                                        // 返回空指针
 
-	if (!checkTicks(stdCode, _cur_tdate))
-		return NULL;
+	if (!checkTicks(stdCode, _cur_tdate))                                   // 检查指定日期的Tick数据是否存在
+		return NULL;                                                        // 如果不存在则返回空指针
 
-	auto& tickList = _ticks_cache[stdCode];
-	if (tickList._cursor == 0)
-		return NULL;
+	auto& tickList = _ticks_cache[stdCode];                                // 获取该合约的Tick数据列表引用
+	if (tickList._cursor == 0)                                             // 如果游标为0（表示没有可用的Tick数据）
+		return NULL;                                                        // 返回空指针
 
-	if (tickList._cursor == UINT_MAX)
+	if (tickList._cursor == UINT_MAX)                                      // 如果游标为最大值（表示还未经过初始定位）
 	{
-		uint32_t uDate = _cur_date;
-		uint32_t uTime = _cur_time * 100000 + _cur_secs;
+		uint32_t uDate = _cur_date;                                         // 初始化日期为当前日期
+		uint32_t uTime = _cur_time * 100000 + _cur_secs;                    // 初始化时间为当前时间（时*100000+秒）
 
-		if (etime != 0)
+		if (etime != 0)                                                     // 如果指定了截止时间
 		{
-			uDate = (uint32_t)(etime / 10000);
-			uTime = (uint32_t)(etime % 10000 * 100000);
+			uDate = (uint32_t)(etime / 10000);                              // 从时间戳中提取日期部分（前4位）
+			uTime = (uint32_t)(etime % 10000 * 100000);                     // 从时间戳中提取时间部分（后4位*100000）
 		}
 
-		WTSTickStruct curTick;
-		curTick.action_date = uDate;
-		curTick.action_time = uTime;
+		WTSTickStruct curTick;                                              // 创建临时Tick结构体用于比较
+		curTick.action_date = uDate;                                        // 设置Tick的日期
+		curTick.action_time = uTime;                                        // 设置Tick的时间
 
-		auto tit = std::lower_bound(tickList._items.begin(), tickList._items.end(), curTick, [](const WTSTickStruct& a, const WTSTickStruct& b){
-			if (a.action_date != b.action_date)
-				return a.action_date < b.action_date;
-			else
-				return a.action_time < b.action_time;
+		auto tit = std::lower_bound(tickList._items.begin(), tickList._items.end(), curTick, [](const WTSTickStruct& a, const WTSTickStruct& b){  // 使用二分查找定位当前时间对应的Tick位置
+			if (a.action_date != b.action_date)                              // 如果日期不同
+				return a.action_date < b.action_date;                       // 按日期比较
+			else                                                            // 如果日期相同
+				return a.action_time < b.action_time;                       // 按时间比较
 		});
 
-		if(tit == tickList._items.end())
+		if(tit == tickList._items.end())                                    // 如果未找到对应的Tick（所有Tick都在目标时间之前）
 		{
-			tickList._cursor = tickList._items.size();
+			tickList._cursor = tickList._items.size();                      // 设置游标为Tick列表大小（指向末尾）
 		}
-		else
+		else                                                                // 如果找到了对应的Tick
 		{
 			
-			std::size_t idx = tit - tickList._items.begin();
-			const WTSTickStruct& thisTick = *tit;
-			if (thisTick.action_date > uDate || (thisTick.action_date == uDate && thisTick.action_time > uTime))
+			std::size_t idx = tit - tickList._items.begin();                // 计算找到的位置索引
+			const WTSTickStruct& thisTick = *tit;                           // 获取当前Tick的引用
+			if (thisTick.action_date > uDate || (thisTick.action_date == uDate && thisTick.action_time > uTime))  // 如果当前Tick的时间大于目标时间
 			{
-				if(idx > 0)
+				if(idx > 0)                                                 // 如果索引大于0
 				{
-					tit--;
-					idx--;
+					tit--;                                                  // 迭代器向前移动一位
+					idx--;                                                  // 索引减1
 				}
-				else
+				else                                                        // 如果索引为0（所有Tick都在目标时间之后）
 				{
-					return NULL;
+					return NULL;                                            // 返回空指针
 				}
 			}
 
-			tickList._cursor = idx + 1;
+			tickList._cursor = idx + 1;                                      // 设置游标为索引+1（游标指向下一个位置）
 		}
 	}
 	
 	//cursor是下一笔tick的index+1，大于当前截止时间的
 	//所以要获取当前截止时间之前的最后一笔tick，需要-2
-	if (tickList._cursor < 2)
-		return NULL;
-	uint32_t eIdx = tickList._cursor - 2;
-	uint32_t sIdx = 0;
-	if (eIdx >= count - 1)
-		sIdx = eIdx + 1 - count;
+	if (tickList._cursor < 2)                                               // 如果游标小于2（表示可用的Tick数量不足）
+		return NULL;                                                        // 返回空指针
+	uint32_t eIdx = tickList._cursor - 2;                                   // 计算结束索引（游标-2，获取当前截止时间之前的最后一笔Tick）
+	uint32_t sIdx = 0;                                                      // 起始索引初始化为0
+	if (eIdx >= count - 1)                                                 // 如果结束索引大于等于请求数量-1
+		sIdx = eIdx + 1 - count;                                            // 计算起始索引（结束索引+1-数量）
 
-	uint32_t realCnt = eIdx - sIdx + 1;
-	if (realCnt == 0)
-		return NULL;
+	uint32_t realCnt = eIdx - sIdx + 1;                                     // 计算实际返回的Tick数量（结束索引-起始索引+1）
+	if (realCnt == 0)                                                       // 如果实际数量为0
+		return NULL;                                                        // 返回空指针
 
-	WTSTickSlice* ticks = WTSTickSlice::create(stdCode, tickList._items.data() + sIdx, realCnt);
-	return ticks;
+	WTSTickSlice* ticks = WTSTickSlice::create(stdCode, tickList._items.data() + sIdx, realCnt);  // 创建Tick切片对象（从起始索引开始，长度为实际数量）
+	return ticks;                                                          // 返回Tick切片指针
 }
 
+/**
+ * @brief 获取订单明细数据切片
+ * 
+ * 根据合约代码、数量和时间参数，从缓存中获取指定数量的订单明细数据切片
+ * 
+ * @param stdCode 合约代码
+ * @param count 需要获取的订单明细数量
+ * @param etime 截止时间戳（可选，0表示使用当前时间）
+ * @return 订单明细数据切片指针，失败返回NULL
+ */
 WTSOrdDtlSlice* HisDataReplayer::get_order_detail_slice(const char* stdCode, uint32_t count, uint64_t etime /* = 0 */)
 {
-	if (!checkOrderDetails(stdCode, _cur_tdate))
-		return NULL;
+	if (!checkOrderDetails(stdCode, _cur_tdate))                            // 检查指定日期的订单明细数据是否存在
+		return NULL;                                                        // 如果不存在则返回空指针
 
-	auto& dataList = _orddtl_cache[stdCode];
-	if (dataList._cursor == 0)
-		return NULL;
+	auto& dataList = _orddtl_cache[stdCode];                               // 获取该合约的订单明细数据列表引用
+	if (dataList._cursor == 0)                                             // 如果游标为0（表示没有可用的订单明细数据）
+		return NULL;                                                        // 返回空指针
 
-	if (dataList._cursor == UINT_MAX)
+	if (dataList._cursor == UINT_MAX)                                      // 如果游标为最大值（表示还未经过初始定位）
 	{
-		uint32_t uDate = _cur_date;
-		uint32_t uTime = _cur_time * 100000 + _cur_secs;
+		uint32_t uDate = _cur_date;                                         // 初始化日期为当前日期
+		uint32_t uTime = _cur_time * 100000 + _cur_secs;                    // 初始化时间为当前时间（时*100000+秒）
 
-		if (etime != 0)
+		if (etime != 0)                                                     // 如果指定了截止时间
 		{
-			uDate = (uint32_t)(etime / 10000);
-			uTime = (uint32_t)(etime % 10000 * 100000);
+			uDate = (uint32_t)(etime / 10000);                              // 从时间戳中提取日期部分（前4位）
+			uTime = (uint32_t)(etime % 10000 * 100000);                     // 从时间戳中提取时间部分（后4位*100000）
 		}
 
-		WTSOrdDtlStruct curItem;
-		curItem.action_date = uDate;
-		curItem.action_time = uTime;
+		WTSOrdDtlStruct curItem;                                            // 创建临时订单明细结构体用于比较
+		curItem.action_date = uDate;                                        // 设置订单明细的日期
+		curItem.action_time = uTime;                                        // 设置订单明细的时间
 
-		auto tit = std::lower_bound(dataList._items.begin(), dataList._items.end(), curItem, [](const WTSOrdDtlStruct& a, const WTSOrdDtlStruct& b) {
-			if (a.action_date != b.action_date)
-				return a.action_date < b.action_date;
-			else
-				return a.action_time < b.action_time;
+		auto tit = std::lower_bound(dataList._items.begin(), dataList._items.end(), curItem, [](const WTSOrdDtlStruct& a, const WTSOrdDtlStruct& b) {  // 使用二分查找定位当前时间对应的订单明细位置
+			if (a.action_date != b.action_date)                              // 如果日期不同
+				return a.action_date < b.action_date;                       // 按日期比较
+			else                                                            // 如果日期相同
+				return a.action_time < b.action_time;                       // 按时间比较
 		});
 
-		std::size_t idx = tit - dataList._items.begin();
-		dataList._cursor = idx + 1;
+		std::size_t idx = tit - dataList._items.begin();                    // 计算找到的位置索引
+		dataList._cursor = idx + 1;                                         // 设置游标为索引+1（游标指向下一个位置）
 	}
 
-	uint32_t eIdx = dataList._cursor - 1;
-	uint32_t sIdx = 0;
-	if (eIdx >= count - 1)
-		sIdx = eIdx + 1 - count;
+	uint32_t eIdx = dataList._cursor - 1;                                   // 计算结束索引（游标-1，获取当前截止时间之前的最后一笔订单明细）
+	uint32_t sIdx = 0;                                                      // 起始索引初始化为0
+	if (eIdx >= count - 1)                                                 // 如果结束索引大于等于请求数量-1
+		sIdx = eIdx + 1 - count;                                            // 计算起始索引（结束索引+1-数量）
 
-	uint32_t realCnt = eIdx - sIdx + 1;
-	if (realCnt == 0)
-		return NULL;
+	uint32_t realCnt = eIdx - sIdx + 1;                                     // 计算实际返回的订单明细数量（结束索引-起始索引+1）
+	if (realCnt == 0)                                                       // 如果实际数量为0
+		return NULL;                                                        // 返回空指针
 
-	WTSOrdDtlSlice* ticks = WTSOrdDtlSlice::create(stdCode, dataList._items.data() + sIdx, realCnt);
-	return ticks;
+	WTSOrdDtlSlice* ticks = WTSOrdDtlSlice::create(stdCode, dataList._items.data() + sIdx, realCnt);  // 创建订单明细切片对象（从起始索引开始，长度为实际数量）
+	return ticks;                                                          // 返回订单明细切片指针
 }
 
+/**
+ * @brief 获取订单队列数据切片
+ * 
+ * 根据合约代码、数量和时间参数，从缓存中获取指定数量的订单队列数据切片
+ * 
+ * @param stdCode 合约代码
+ * @param count 需要获取的订单队列数量
+ * @param etime 截止时间戳（可选，0表示使用当前时间）
+ * @return 订单队列数据切片指针，失败返回NULL
+ */
 WTSOrdQueSlice* HisDataReplayer::get_order_queue_slice(const char* stdCode, uint32_t count, uint64_t etime /* = 0 */)
 {
-	if (!checkOrderQueues(stdCode, _cur_tdate))
-		return NULL;
+	if (!checkOrderQueues(stdCode, _cur_tdate))                             // 检查指定日期的订单队列数据是否存在
+		return NULL;                                                        // 如果不存在则返回空指针
 
-	auto& dataList = _ordque_cache[stdCode];
-	if (dataList._cursor == 0)
-		return NULL;
+	auto& dataList = _ordque_cache[stdCode];                               // 获取该合约的订单队列数据列表引用
+	if (dataList._cursor == 0)                                             // 如果游标为0（表示没有可用的订单队列数据）
+		return NULL;                                                        // 返回空指针
 
-	if (dataList._cursor == UINT_MAX)
+	if (dataList._cursor == UINT_MAX)                                      // 如果游标为最大值（表示还未经过初始定位）
 	{
-		uint32_t uDate = _cur_date;
-		uint32_t uTime = _cur_time * 100000 + _cur_secs;
+		uint32_t uDate = _cur_date;                                         // 初始化日期为当前日期
+		uint32_t uTime = _cur_time * 100000 + _cur_secs;                    // 初始化时间为当前时间（时*100000+秒）
 
-		if (etime != 0)
+		if (etime != 0)                                                     // 如果指定了截止时间
 		{
-			uDate = (uint32_t)(etime / 10000);
-			uTime = (uint32_t)(etime % 10000 * 100000);
+			uDate = (uint32_t)(etime / 10000);                              // 从时间戳中提取日期部分（前4位）
+			uTime = (uint32_t)(etime % 10000 * 100000);                     // 从时间戳中提取时间部分（后4位*100000）
 		}
 
-		WTSOrdQueStruct curItem;
-		curItem.action_date = uDate;
-		curItem.action_time = uTime;
+		WTSOrdQueStruct curItem;                                            // 创建临时订单队列结构体用于比较
+		curItem.action_date = uDate;                                        // 设置订单队列的日期
+		curItem.action_time = uTime;                                        // 设置订单队列的时间
 
-		auto tit = std::lower_bound(dataList._items.begin(), dataList._items.end(), curItem, [](const WTSOrdQueStruct& a, const WTSOrdQueStruct& b) {
-			if (a.action_date != b.action_date)
-				return a.action_date < b.action_date;
-			else
-				return a.action_time < b.action_time;
+		auto tit = std::lower_bound(dataList._items.begin(), dataList._items.end(), curItem, [](const WTSOrdQueStruct& a, const WTSOrdQueStruct& b) {  // 使用二分查找定位当前时间对应的订单队列位置
+			if (a.action_date != b.action_date)                              // 如果日期不同
+				return a.action_date < b.action_date;                       // 按日期比较
+			else                                                            // 如果日期相同
+				return a.action_time < b.action_time;                       // 按时间比较
 		});
 
-		std::size_t idx = tit - dataList._items.begin();
-		dataList._cursor = idx + 1;
+		std::size_t idx = tit - dataList._items.begin();                    // 计算找到的位置索引
+		dataList._cursor = idx + 1;                                         // 设置游标为索引+1（游标指向下一个位置）
 	}
 
-	uint32_t eIdx = dataList._cursor - 1;
-	uint32_t sIdx = 0;
-	if (eIdx >= count - 1)
-		sIdx = eIdx + 1 - count;
+	uint32_t eIdx = dataList._cursor - 1;                                   // 计算结束索引（游标-1，获取当前截止时间之前的最后一笔订单队列）
+	uint32_t sIdx = 0;                                                      // 起始索引初始化为0
+	if (eIdx >= count - 1)                                                 // 如果结束索引大于等于请求数量-1
+		sIdx = eIdx + 1 - count;                                            // 计算起始索引（结束索引+1-数量）
 
-	uint32_t realCnt = eIdx - sIdx + 1;
-	if (realCnt == 0)
-		return NULL;
+	uint32_t realCnt = eIdx - sIdx + 1;                                     // 计算实际返回的订单队列数量（结束索引-起始索引+1）
+	if (realCnt == 0)                                                       // 如果实际数量为0
+		return NULL;                                                        // 返回空指针
 
-	WTSOrdQueSlice* ticks = WTSOrdQueSlice::create(stdCode, dataList._items.data() + sIdx, realCnt);
-	return ticks;
+	WTSOrdQueSlice* ticks = WTSOrdQueSlice::create(stdCode, dataList._items.data() + sIdx, realCnt);  // 创建订单队列切片对象（从起始索引开始，长度为实际数量）
+	return ticks;                                                          // 返回订单队列切片指针
 }
 
+/**
+ * @brief 获取逐笔成交数据切片
+ * 
+ * 根据合约代码、数量和时间参数，从缓存中获取指定数量的逐笔成交数据切片
+ * 
+ * @param stdCode 合约代码
+ * @param count 需要获取的逐笔成交数量
+ * @param etime 截止时间戳（可选，0表示使用当前时间）
+ * @return 逐笔成交数据切片指针，失败返回NULL
+ */
 WTSTransSlice* HisDataReplayer::get_transaction_slice(const char* stdCode, uint32_t count, uint64_t etime /* = 0 */)
 {
-	if (!checkTransactions(stdCode, _cur_tdate))
-		return NULL;
+	if (!checkTransactions(stdCode, _cur_tdate))                            // 检查指定日期的逐笔成交数据是否存在
+		return NULL;                                                        // 如果不存在则返回空指针
 
-	auto& dataList = _trans_cache[stdCode];
-	if (dataList._cursor == 0)
-		return NULL;
+	auto& dataList = _trans_cache[stdCode];                                // 获取该合约的逐笔成交数据列表引用
+	if (dataList._cursor == 0)                                             // 如果游标为0（表示没有可用的逐笔成交数据）
+		return NULL;                                                        // 返回空指针
 
-	if (dataList._cursor == UINT_MAX)
+	if (dataList._cursor == UINT_MAX)                                      // 如果游标为最大值（表示还未经过初始定位）
 	{
-		uint32_t uDate = _cur_date;
-		uint32_t uTime = _cur_time * 100000 + _cur_secs;
+		uint32_t uDate = _cur_date;                                         // 初始化日期为当前日期
+		uint32_t uTime = _cur_time * 100000 + _cur_secs;                    // 初始化时间为当前时间（时*100000+秒）
 
-		if (etime != 0)
+		if (etime != 0)                                                     // 如果指定了截止时间
 		{
-			uDate = (uint32_t)(etime / 10000);
-			uTime = (uint32_t)(etime % 10000 * 100000);
+			uDate = (uint32_t)(etime / 10000);                              // 从时间戳中提取日期部分（前4位）
+			uTime = (uint32_t)(etime % 10000 * 100000);                     // 从时间戳中提取时间部分（后4位*100000）
 		}
 
-		WTSTransStruct curItem;
-		curItem.action_date = uDate;
-		curItem.action_time = uTime;
+		WTSTransStruct curItem;                                             // 创建临时逐笔成交结构体用于比较
+		curItem.action_date = uDate;                                        // 设置逐笔成交的日期
+		curItem.action_time = uTime;                                        // 设置逐笔成交的时间
 
-		auto tit = std::lower_bound(dataList._items.begin(), dataList._items.end(), curItem, [](const WTSTransStruct& a, const WTSTransStruct& b) {
-			if (a.action_date != b.action_date)
-				return a.action_date < b.action_date;
-			else
-				return a.action_time < b.action_time;
+		auto tit = std::lower_bound(dataList._items.begin(), dataList._items.end(), curItem, [](const WTSTransStruct& a, const WTSTransStruct& b) {  // 使用二分查找定位当前时间对应的逐笔成交位置
+			if (a.action_date != b.action_date)                              // 如果日期不同
+				return a.action_date < b.action_date;                       // 按日期比较
+			else                                                            // 如果日期相同
+				return a.action_time < b.action_time;                       // 按时间比较
 		});
 
-		std::size_t idx = tit - dataList._items.begin();
-		dataList._cursor = idx + 1;
+		std::size_t idx = tit - dataList._items.begin();                    // 计算找到的位置索引
+		dataList._cursor = idx + 1;                                         // 设置游标为索引+1（游标指向下一个位置）
 	}
 
-	std::size_t eIdx = dataList._cursor - 1;
-	std::size_t sIdx = 0;
-	if (eIdx >= count - 1)
-		sIdx = eIdx + 1 - count;
+	std::size_t eIdx = dataList._cursor - 1;                                // 计算结束索引（游标-1，获取当前截止时间之前的最后一笔逐笔成交）
+	std::size_t sIdx = 0;                                                   // 起始索引初始化为0
+	if (eIdx >= count - 1)                                                 // 如果结束索引大于等于请求数量-1
+		sIdx = eIdx + 1 - count;                                            // 计算起始索引（结束索引+1-数量）
 
-	std::size_t realCnt = eIdx - sIdx + 1;
-	if (realCnt == 0)
-		return NULL;
+	std::size_t realCnt = eIdx - sIdx + 1;                                  // 计算实际返回的逐笔成交数量（结束索引-起始索引+1）
+	if (realCnt == 0)                                                       // 如果实际数量为0
+		return NULL;                                                        // 返回空指针
 
-	WTSTransSlice* ticks = WTSTransSlice::create(stdCode, dataList._items.data() + sIdx, realCnt);
-	return ticks;
+	WTSTransSlice* ticks = WTSTransSlice::create(stdCode, dataList._items.data() + sIdx, realCnt);  // 创建逐笔成交切片对象（从起始索引开始，长度为实际数量）
+	return ticks;                                                          // 返回逐笔成交切片指针
 }
 
 /**
