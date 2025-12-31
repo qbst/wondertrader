@@ -577,6 +577,14 @@ bool CtaMocker::init_cta_factory(WTSVariant* cfg)
  * @brief 加载增量回测数据
  * 
  * 从上次回测的结果文件中加载持仓、资金、信号等数据，用于增量回测
+ * 加载数据 输出目录 为：{output_dir}/{incremental_backtest_base}：
+ * - trades.csv 加载成交记录到 _trade_logs
+ * - closes.csv 加载平仓记录到 _close_logs
+ * - funds.csv 加载资金曲线到 _fund_logs
+ * - positions.csv 加载持仓记录到 _pos_logs
+ * - signals.csv 加载信号记录到 _sig_logs
+ * - {incremental_backtest_base}.json 加载策略数据到 _strategy
+ * - ud_*.json 加载条件单数据到 _condtions
  * 
  * @param incremental_backtest_base 上次回测的策略名称
  */
