@@ -327,7 +327,7 @@ bool ParserAdapter::run()
 
 	_parser_api->connect();  // 连接解析器
 	return true;  // 返回成功
-}
+}f
 
 /**
  * @brief 处理实时行情（IParserSpi接口）
