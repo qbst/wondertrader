@@ -1,51 +1,72 @@
-﻿/*!
+/*!
  * \file WtRtRunner.h
  * \project	WonderTrader
  *
  * \author Wesley
  * \date 2020/03/30
  * 
- * \brief 
+ * \brief WtRtRunner运行时运行器类定义文件
+ * 
+ * 本文件定义了WtRtRunner类，这是WtPorter模块的核心类，负责管理整个交易系统的运行时环境。
+ * WtRtRunner是WonderTrader框架与外部语言交互的核心桥梁，实现了：
+ * 1. 交易引擎管理（CTA、HFT、SEL引擎的创建和管理）
+ * 2. 策略上下文管理（创建和管理各种策略上下文实例）
+ * 3. 回调函数管理（注册和管理各种回调函数，将事件转发给外部语言）
+ * 4. 数据加载管理（支持外部数据源加载历史数据）
+ * 5. 扩展组件管理（Parser、Executer的创建和管理）
+ * 6. 事件通知（引擎事件、交易日事件等的通知）
+ * 
+ * 设计逻辑：
+ * - WtRtRunner作为单例对象，管理整个系统的生命周期
+ * - 通过回调函数机制实现事件驱动的编程模型
+ * - 支持多种策略类型（CTA、HFT、SEL），根据配置选择对应的引擎
+ * - 通过适配器模式管理交易通道和行情通道
+ * - 支持外部数据加载器，允许从自定义数据源加载历史数据
  */
 #pragma once
-#include <string>
+#include <string>  // 标准字符串库
 
-#include "PorterDefs.h"
+#include "PorterDefs.h"  // Porter模块定义文件
 
-#include "../Includes/ILogHandler.h"
-#include "../Includes/IDataReader.h"
+#include "../Includes/ILogHandler.h"  // 日志处理器接口
+#include "../Includes/IDataReader.h"  // 数据读取器接口
 
-#include "../WtCore/EventNotifier.h"
-#include "../WtCore/CtaStrategyMgr.h"
-#include "../WtCore/HftStrategyMgr.h"
-#include "../WtCore/SelStrategyMgr.h"
-#include "../WtCore/WtCtaEngine.h"
-#include "../WtCore/WtHftEngine.h"
-#include "../WtCore/WtSelEngine.h"
-#include "../WtCore/WtLocalExecuter.h"
-#include "../WtCore/WtDiffExecuter.h"
-#include "../WtCore/WtDistExecuter.h"
-#include "../WtCore/WtArbiExecuter.h"
-#include "../WtCore/TraderAdapter.h"
-#include "../WtCore/ParserAdapter.h"
-#include "../WtCore/WtDtMgr.h"
-#include "../WtCore/ActionPolicyMgr.h"
+#include "../WtCore/EventNotifier.h"  // 事件通知器
+#include "../WtCore/CtaStrategyMgr.h"  // CTA策略管理器
+#include "../WtCore/HftStrategyMgr.h"  // HFT策略管理器
+#include "../WtCore/SelStrategyMgr.h"  // SEL策略管理器
+#include "../WtCore/WtCtaEngine.h"  // CTA引擎
+#include "../WtCore/WtHftEngine.h"  // HFT引擎
+#include "../WtCore/WtSelEngine.h"  // SEL引擎
+#include "../WtCore/WtLocalExecuter.h"  // 本地执行器
+#include "../WtCore/WtDiffExecuter.h"  // 差异执行器
+#include "../WtCore/WtDistExecuter.h"  // 分布式执行器
+#include "../WtCore/WtArbiExecuter.h"  // 套利执行器
+#include "../WtCore/TraderAdapter.h"  // 交易适配器
+#include "../WtCore/ParserAdapter.h"  // 行情适配器
+#include "../WtCore/WtDtMgr.h"  // 数据管理器
+#include "../WtCore/ActionPolicyMgr.h"  // 开平策略管理器
 
-#include "../WTSTools/WTSHotMgr.h"
-#include "../WTSTools/WTSBaseDataMgr.h"
+#include "../WTSTools/WTSHotMgr.h"  // 主力合约管理器
+#include "../WTSTools/WTSBaseDataMgr.h"  // 基础数据管理器
 
 NS_WTP_BEGIN
-class WTSVariant;
-class WtDataStorage;
+class WTSVariant;  // 前向声明：变体类型（用于配置）
+class WtDataStorage;  // 前向声明：数据存储类
 NS_WTP_END
 
-USING_NS_WTP;
+USING_NS_WTP;  // 使用WonderTrader命名空间
 
+/**
+ * @brief 引擎类型枚举
+ * 
+ * 定义不同类型的交易引擎
+ */
 typedef enum tagEngineType
 {
-	ET_CTA = 999,	//CTA引擎	
-	ET_HFT,			//高频引擎
-	ET_SEL			//选股引擎
+	ET_CTA = 999,	// CTA引擎（商品交易顾问策略引擎）
+	ET_HFT,			// 高频引擎（高频交易策略引擎）
+	ET_SEL			// 选股引擎（选股策略引擎）
 } EngineType;
 
 class WtRtRunner : public IEngineEvtListener, public ILogHandler, public IHisDataLoader

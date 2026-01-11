@@ -1,11 +1,22 @@
-﻿/*!
+/*!
  * \file WtRtRunner.cpp
  * \project	WonderTrader
  *
  * \author Wesley
  * \date 2020/03/30
  * 
- * \brief 
+ * \brief WtRtRunner运行时运行器类实现文件
+ * 
+ * 本文件实现了WtRtRunner类的所有方法，包括：
+ * 1. 引擎初始化和配置
+ * 2. 策略上下文创建和管理
+ * 3. 回调函数注册和事件转发
+ * 4. 数据加载和推送
+ * 5. 扩展组件管理
+ * 6. 系统运行和资源释放
+ * 
+ * WtRtRunner是整个WtPorter模块的核心，负责协调各个组件的工作，
+ * 将外部语言的调用转换为对内部引擎的操作，并将引擎的事件转发给外部语言。
  */
 #include "WtRtRunner.h"
 #include "ExpCtaContext.h"
