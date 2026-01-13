@@ -666,6 +666,16 @@ void WtTWapExeUnit::do_calc()
 	curTick->release();
 }
 
+/**
+ * @brief 设置新的目标仓位
+ * 
+ * 设置执行单元的目标仓位，执行单元会根据TWAP算法在指定时间段内均匀执行。
+ * 
+ * @param stdCode 合约代码
+ * @param newVol 新的目标仓位（正数表示多头，负数表示空头，DBL_MAX表示清仓）
+ * 
+ * 重写自ExecuteUnit基类
+ */
 void WtTWapExeUnit::set_position(const char* stdCode, double newVol)
 {
 	if (_code.compare(stdCode) != 0)

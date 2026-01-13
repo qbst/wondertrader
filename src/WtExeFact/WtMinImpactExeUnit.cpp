@@ -251,7 +251,7 @@ void WtMinImpactExeUnit::on_channel_ready()
 	{
 		/*
 		 * 如果未完成单不为0，而订单管理器中没有订单
-		 * 这说明有未完成单不在监控之中，全部撤销掉
+		 * 这说明有未完成单不在监控之中，全f部撤销掉
 		 * 因为这些订单没有本地订单号，无法直接进行管理
 		 * 这种情况，就是刚启动的时候，上次的未完成单或者外部的挂单
 		 */
@@ -380,8 +380,7 @@ void WtMinImpactExeUnit::on_entrust(uint32_t localid, const char* stdCode, bool 
 	{
 		// 如果不是我发出去的订单，我就不管了
 		if (!_orders_mon.has_order(localid))  // 如果订单管理器中不存在该订单
-			return;  // 直接返回，不做任何处理
-
+			return;  // 直接返回，不做任何处
 		_orders_mon.erase_order(localid);  // 从订单管理器中删除该订单
 
 		do_calc();  // 触发重新计算，重新下单
